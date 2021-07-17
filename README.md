@@ -9,10 +9,12 @@ A figura a seguir mostra outra foto do GG.
 
 ![](fotos/IMG_3787.jpeg)
 
-A primeira experiência foi uma pesquisa de trabalho de conclusão de curso de engenharia automotiva de implementar para transformar o varrinho de golfe num veículo elétrico híbrido série.
+A primeira experiência foi uma pesquisa de trabalho de conclusão de curso de engenharia automotiva de implementar para transformar o carrinho de golfe num veículo elétrico híbrido série [1].
 
 Um outro trabalho de conclusão de curso desenvolveu um computador de bordo para o GamaGolfe.
 
+
+[1] Costa de Oliveira T. Estudo da tecnologia empregada em veículos elétricos com autonomia estendida: comparativo cxperimental com veiculos híbridos. Universidade de Brasília, 2018.
 
 
 # 2. Plataforma de ensino e pesquisa
@@ -66,3 +68,9 @@ O banco de baterias é formado por 4 baterias de automotiva  de 100Ah.
 O sistema de sinalização de setas e iluminação
 
 ![](fotos/IMG_3780.jpeg)
+
+## 3.3. Painel do computador de bordo
+
+Painel do computador de bordo.
+
+![](fotos/Foto_painel_mod_instrum_GamaGolfe.jpg)
