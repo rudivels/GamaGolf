@@ -32,45 +32,75 @@ A versão original do GG tem somente um sistema de indicação de carga de bater
 ![](fotos/IMG_3775.jpeg)
 
 
-# 3. Proposta de arquitetura**
-
-Dessa forma se propõe as seguintes funções ou possibilidades:
-
-* Módulo de carga de bateria inteligente com medição do consumo de energia;
-* Módulo de monitoração de corrente e tensão da bateria, com calculo de energia consumido;
-* Módulo instrumentação para montorar a velocidade de deslocamento e monitaramento de outros sinais cruziais do GG;
-* Módulo GPS para registrar o percurso do veículo
-* Módulo Scada num servidor para registrar os diversos variáveis do GG em tempo real;
-* Estratégias para viabilizar a movimentação autônoma do GG;
-
-
-Estrutura composto por 
-
-* Computador de bordo Pocket Beagle om rede CAN;
-* Módulo de sinalazação; 
-* Módulo de instrumentação;
-* Módulo BMS
-* Scada de monitoramemte;
-* Módulo de direção e aceleração assistida;
-
-
-
-
-
-## 3.1. Banco de baterias
 
 O banco de baterias é formado por 4 baterias de automotiva  de 100Ah.
 
 ![](fotos/IMG_3770.jpeg)
 
-## 3.2. Módulo de sinalização
+
+# 3. Proposta de arquitetura
+
+Dessa forma se propõe as seguintes funções ou possibilidades:
+
+* funcionalidade de carregar a bateria de forma inteligente com medição do consumo de energia e calculo de estado de carag;
+* funcionalidade de de monitorar a corrente e a tensão da bateria, com calculo de energia consumida;
+* monitorar a velocidade de deslocamento e outros sinais cruziais do GG;
+* funcionalidade de registrar o percurso do veículo por meio de GPS;
+* visualisar todos os variaveis do veículo por meio de um servidor SCADA em tempo real;
+* criar estratégias para viabilizar a movimentação autônoma do GG;
+
+
+Estrutura para implementar essas funcionalidades será composto pelos seguintes módulos de hardware e software: 
+
+* Módulo de instrumentação; 
+* Computador de bordo Pocket Beagle om rede CAN;
+* Módulo de sinalização;
+* Módulo BMS;
+* Servidor SCADA;
+* Módulo de direção e aceleração assistida;
+
+
+## 3.1. Módulo de instrumentação 
+
+* Sensor de velocidade
+* Sensor de tensão da bateria de 12Volts
+* Sensor de tensão do banco de bateria de 48Volts
+* Sensor de corrente do banco de bateria
+
+ 
+O sensor de velocidade é implementado por meio de um sensor indutivo de aproximação montada no cubo da roda dianteira, onde a cada volta o sensor pega 4 pulsos.
+
+![](fotos/sensor_velocidade.jpg)
+
+O sensor indutivo aparentemente é da configuração PNP com a seguinte pinagem
+
+| cor | função |
+|-----|--------|
+| marron | alimentação 12Vdc |
+| preto  | sinal (deve ligar um resistor 10K para negativa ) |
+| azul   | negativa |
+
+O painel do módulo de instrumentação é mostada na figura seguinte. No lado direito do painel são mostrados as variáveis elétricas, tensão e corrente da bateria, enquanto no lado esquerda são mostrados os valores de velocidade, odômetro e outras variaveis do veículo.
+
+
+![](fotos/Foto_painel_mod_instrum_GamaGolfe.jpg)
+
+
+### 3.1.1 Calibragem do sensor de velocidade
+
+Numa primeira calibragem, a circumferência da roda, ou a distância de uma volta completa da roda é de 99 cm. Numa volta completa o sensor gera 4 pulsos.
+
+
+
+## 3.2. Computador de bordo
+
+
+
+
+## 3.3. Módulo de sinalização
 
 O sistema de sinalização de setas e iluminação
 
 ![](fotos/IMG_3780.jpeg)
 
-## 3.3. Painel do computador de bordo
 
-Painel do computador de bordo.
-
-![](fotos/Foto_painel_mod_instrum_GamaGolfe.jpg)
