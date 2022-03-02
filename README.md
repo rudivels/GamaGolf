@@ -1,4 +1,7 @@
 # 1. Gama Golfe
+
+link para arquivo original `Documentos/GitHub/GamaGolf`
+
 O campus Gama tem a disposição um carro de golfe, que foi batizado com o nome de GamaGolge (GG). 
 Este veículo está sendo usado para o uso dia-a-dia das atividades de transporte de material e de pessoas do campus Gama e também está sendo usado para pesquisas e experimentos de mobilidade elétrica.
 
