@@ -65,11 +65,25 @@ Estrutura para implementar essas funcionalidades será composto pelos seguintes 
 
 ## 3.1. Módulo de instrumentação 
 
+O módulo de instrumentação é formado por uma placa de instrumentação com o seguinte esquema.
+
+![](figuras/Esquema_Mod_instrumentacao2.jpg)
+
+Essa placa de controle tem as seguintes funcionalidades :
+
 * Sensor de velocidade
 * Sensor de tensão da bateria de 12Volts
 * Sensor de tensão do banco de bateria de 48Volts
 * Sensor de corrente do banco de bateria
+* Display LCD de 128x64
+* Interface CAN
 
+A placa tem mais funcionalidades e pode ser programada para ler mais sensores. A figura a seguir mostra a placa de instrumentação sendo testado na bancada.
+
+ 
+![](fotos/foto_placa_instrum_lcd.jpg) 
+
+### 3.1.1. Módulo de instrumentação 
  
 O sensor de velocidade é implementado por meio de um sensor indutivo de aproximação montada no cubo da roda dianteira, onde a cada volta o sensor pega 4 pulsos.
 
@@ -83,11 +97,7 @@ O sensor indutivo aparentemente é da configuração PNP com a seguinte pinagem
 | preto  | sinal (deve ligar um resistor 10K para negativa ) |
 | azul   | negativa |
 
-O painel do módulo de instrumentação é mostada na figura seguinte. No lado direito do painel são mostrados as variáveis elétricas, tensão e corrente da bateria, enquanto no lado esquerda são mostrados os valores de velocidade, odômetro e outras variaveis do veículo.
-
-
-![](fotos/Foto_painel_mod_instrum_GamaGolfe.jpg)
-
+O display do módulo de instrumentação mostra no lado direito do painel são mostrados as variáveis elétricas, tensão e corrente da bateria, enquanto no lado esquerda são mostrados os valores de velocidade, odômetro e outras variaveis do veículo.
 
 ### 3.1.1 Calibragem do sensor de velocidade
 
@@ -95,9 +105,41 @@ Numa primeira calibragem, a circumferência da roda, ou a distância de uma volt
 
 
 
-## 3.2. Computador de bordo
+## 3.2. Computador de bordo OBC
+
+O diagrama de blocos do computador de bordo é dado a seguir.
+
+![](figuras/Diagrama_BBB_can_GPS.jpg)
+
+O computador de bordo tem a seguinte disponibilidade.
+
+* GPS para pegar os coordenados geográficos
+* Interface CAN
+* Painel com chaves e leds
+* Banco de dados para armazenar os dados
+* Acesso por meio de rede Wifi
+
+O OBC é implementado com o BeagleBone Black (BBB). A configuração é a mesma usado pelo OBC do BR800 que pode ser visto no [link](https://github.com/Tecnomobele-FGA/Computador-de-bordo).
+A diferença é que no caso do GG é preciso ter a opção de um monitor com interface HDMI e por isso se escolheu o BBB. 
+
+![](fotos/Foto_BBB_bateria.jpg)
+
+Os pinos usados são:
+
+| Beagle  | uso             | pinos | 
+|:--------|:---------------:|:-----:|
+| CAN 0   | Barramento CAN  | P1 - 26,28 |
+| UART 4  | Serial GPS      | P2 - 5,7   | 
+| Battery | Litium 18650    | conector batteria TP5,TP6,TP7,TP8 | 
+| GPIO    | Chaves para GND | P2 - 2,4   | 
+| AIN0    | Monitorar a tensão Vcc | P1 - 19 |
+
+A montagem do OBC será no painel frontal e o esquema a seguir mostra uma opção de montagem.
+
+![](figuras/Esquema_Montagem_OBC_Instrumtacao.jpg)
 
 
+![](fotos/Foto_painel_mod_instrum_GamaGolfe.jpg)
 
 
 ## 3.3. Módulo de sinalização
