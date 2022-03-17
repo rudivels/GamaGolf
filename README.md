@@ -87,7 +87,7 @@ A estrutura para implementar essas funcionalidades será composto pelos seguinte
 Uma primeira versão do diagrama de blocos da arquitetura com a implementação mínima de computador de bordo e módulo de instrumentação é mostrada na figura a seguir.
 
 
-![](figuras/Diagrama_blocos_arquitetura.jpg) 
+![](figuras/Diagrama_blocos_Arquitetura.jpg) 
 
 Na medida que os demais módulos serão implementados eles serão interligados com os demais módulos pelo barramento de comunicação CAN.
 
