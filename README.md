@@ -52,7 +52,11 @@ A foto mostro o painel do medidor no dashboard do GG.
 Com essa instrumentação muito simples foram realizados algumas experiências simples como parte de laboratório da disciplina de sistemas de conversão de energia. 
 O ensaio consistia em filmar durante o percurso a tensão e a corrente do carrinho e depois fazer uma avaliação simples.
  
-Alguns dos relatorios de ensaio com essa instrumentação podem ser acessados [ no link aqui](anexos/Relatorio_GG_Henrique_Moura_160058651.pdf) e [neste link  ](anexos/Relatorio_Gama_Golfe_Ana_Luisa)
+Alguns dos relatorios de ensaio com essa instrumentação podem ser acessados aqui: 
+
+[relatório 1](anexos/Relatorio_GG_Henrique_Moura_160058651.pdf)
+
+[relatório 2](anexos/Relatorio_Gama_Golfe_Ana_Luisa.pdf)
 
 Entretanto é necessário a construção de um sistema de instrumentação e aquisição de dados mais robustas e escalonável.
 
