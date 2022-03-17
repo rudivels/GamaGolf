@@ -1,4 +1,4 @@
-# 1. Gama Golfe
+# Gama Golfe
 
 link para arquivo original `Documentos/GitHub/GamaGolf`
 
@@ -35,46 +35,71 @@ A versão original do GG tem somente um sistema de indicação de carga de bater
 ![](fotos/IMG_3775.jpeg)
 
 
-
-O banco de baterias é formado por 4 baterias de automotiva  de 100Ah.
+O banco de baterias é formado por 4 baterias de automotiva  de 100Ah. 
 
 ![](fotos/IMG_3770.jpeg)
 
+A primeira instrumentação instalada no GG foi um medidor de tensão e corrente simples sem registro de dados ou interface com um computador. 
+O transdutor de corrente é implementado por meio de um shunt na saída da bateria. 
+Na foto anterior é possível ver o transdutor de corrente (shunt) no terminal da primeira bateria.
 
-# 3. Proposta de arquitetura
 
-Dessa forma se propõe as seguintes funções ou possibilidades:
+A foto mostro o painel do medidor no dashboard do GG.
+ 
+![](fotos/medidor_corrente_tensao.jpg)
 
-* funcionalidade de carregar a bateria de forma inteligente com medição do consumo de energia e calculo de estado de carag;
-* funcionalidade de de monitorar a corrente e a tensão da bateria, com calculo de energia consumida;
+
+Com essa instrumentação muito simples foram realizados algumas experiências simples como parte de laboratório da disciplina de sistemas de conversão de energia. 
+O ensaio consistia em filmar durante o percurso a tensão e a corrente do carrinho e depois fazer uma avaliação simples.
+ 
+Alguns dos relatorios de ensaio com essa instrumentação podem ser acessados [ no link aqui](anexos/Relatorio_GG_Henrique_Moura_160058651.pdf) e [neste link  ](anexos/Relatorio_Gama_Golfe_Ana_Luisa)
+
+Entretanto é necessário a construção de um sistema de instrumentação e aquisição de dados mais robustas e escalonável.
+
+A próxima secção apresenta uma proposta de arquitetura de aquisição de dados.
+
+
+# 3. Proposta de arquitetura de instrumentação e automação
+
+O sistema de instrumentação e automação deve ter as seguintes funções ou possibilidades:
+
+* funcionalidade de carregar a bateria de forma inteligente com medição do consumo de energia e calculo de estado de carga;
+* funcionalidade de monitorar a corrente e a tensão da bateria, com calculo de energia consumida;
 * monitorar a velocidade de deslocamento e outros sinais cruziais do GG;
 * funcionalidade de registrar o percurso do veículo por meio de GPS;
-* visualisar todos os variaveis do veículo por meio de um servidor SCADA em tempo real;
+* visualisar todos os variaveis do veículo por meio de um servidor SCADA em tempo real ou off-line;
 * criar estratégias para viabilizar a movimentação autônoma do GG;
 
 
-Estrutura para implementar essas funcionalidades será composto pelos seguintes módulos de hardware e software: 
+A estrutura para implementar essas funcionalidades será composto pelos seguintes módulos de hardware e software: 
 
-* Módulo de instrumentação; 
-* Computador de bordo Pocket Beagle om rede CAN;
-* Módulo de sinalização;
-* Módulo BMS;
-* Servidor SCADA;
-* Módulo de direção e aceleração assistida;
+1. Módulo de instrumentação com interface CAN; 
+2. Computador de bordo baseado no BeagleBone Black om rede CAN;
+3. Módulo de sinalização com interface CAN;
+4. Módulo BMS con interfce CAN;
+5. Computador Servidor SCADA;
+6. Módulo de direção e aceleração assistida com interface CAN;
 
+Uma primeira versão do diagrama de blocos da arquitetura com a implementação mínima de computador de bordo e módulo de instrumentação é mostrada na figura a seguir.
+
+
+![](figuras/Diagrama_blocos_arquitetura.jpg) 
+
+Na medida que os demais módulos serão implementados eles serão interligados com os demais módulos pelo barramento de comunicação CAN.
 
 ## 3.1. Módulo de instrumentação 
 
-O módulo de instrumentação é formado por uma placa de instrumentação com o seguinte esquema.
+O módulo de instrumentação é formado por uma placa de instrumentação com o seguinte esquema eletrônico.
 
 ![](figuras/Esquema_Mod_instrumentacao2.jpg)
 
 Essa placa de controle tem as seguintes funcionalidades :
 
 * Sensor de velocidade
-* Sensor de tensão da bateria de 12Volts
-* Sensor de tensão do banco de bateria de 48Volts
-* Sensor de corrente do banco de bateria
+* Sensor de tensão da bateria estacionária de 12Volts
+* Sensor de corrente da bateria estacionária de 12Volts
+* Sensor de tensão do banco de bateria de tração de 48Volts
+* Sensor de corrente do banco de bateria de tração 
 * Display LCD de 128x64
 * Interface CAN
 
@@ -97,12 +122,35 @@ O sensor indutivo aparentemente é da configuração PNP com a seguinte pinagem
 | preto  | sinal (deve ligar um resistor 10K para negativa ) |
 | azul   | negativa |
 
-O display do módulo de instrumentação mostra no lado direito do painel são mostrados as variáveis elétricas, tensão e corrente da bateria, enquanto no lado esquerda são mostrados os valores de velocidade, odômetro e outras variaveis do veículo.
+O display do módulo de instrumentação mostra a velocidade, deslocamento e as variáveis elétricas, tensão e corrente das baterias.
 
-### 3.1.2. Calibragem do sensor de velocidade
+#### 3.1.1.1 Calibragem do sensor de velocidade
 
 Numa primeira calibragem, a circumferência da roda, ou a distância de uma volta completa da roda é de 99 cm. Numa volta completa o sensor gera 4 pulsos.
 
+
+### 3.1.2 Sensor de corrente
+
+O sensor de corrente que está sendo usado no GamaGolfe é um sensor da LEM conforme mostrado na figura a seguir.
+Este sensor será ligada em uma das entradas analógiacas do conector J5 
+
+![](fotos/foto_sensor_corrente.jpg)
+
+O sensor é alimentado com 5 volts e a sua sáida é um sinal analógico de xxx a xxx volts. 
+
+Os pinos 1,2, e 8 do conector J5 ligam o sensor
+
+| J5| 	função |	Sensor   |
+|---|--------|------------|
+| 1 | 5V     | cor do fio |  
+| 2 | Sinal  | cor do fio |
+| 8 | GND    | cor do fio |
+
+[Datasheet do sensor de corrente](https://www.lem.com/sites/default/files/products_datasheets/ho_50_250-s-0100_series.pdf)
+
+![](figuras/sensor_corrente_pinagem.jpg)
+
+![](figuras/esquema_sensor_corrente.jpg)
 
 
 ## 3.2. Computador de bordo OBC
@@ -188,15 +236,12 @@ A placa de interface para ligar o BBB com a interface CAN é dado no esquema a s
 
 ![](figuras/Placa_piggi_back_BBB.jpg)
 
-A montagem do OBC será no painel frontal e o esquema a seguir mostra uma opção de montagem.
-
-![](figuras/Esquema_Montagem_OBC_Instrumtacao.jpg)
-
+A montagem do OBC será no dashboard do veículo . 
 A vista frontal do OBC é mostrado a seguir. 
 
 ![](fotos/Frente_OBC_GG.jpg)
 
-A vista de cima mostra os diversos componentes e sua disposição e as ligações.
+A vista de cima mostra a placa de instrumentação ao lado do computador de bordo conectado ao GPS e WiFi USB dongle. 
 
 ![](fotos/Cima_OBC_GG.jpg)
 
@@ -217,8 +262,8 @@ Os pinos do BBB são diferentes do Pocket Beagle.
 | | | | CANL    | J2-6 | 
 
 O programa `config-pin` configura os pinos do BBB para as diversas funcionalidades.
-Criei um script para configurar as portas no arquivo `configcan.sh` na pasta `/home/debian/`
 
+Para automatizar a configuração do CAN, criei um script para configurar as portas no arquivo `configcan.sh` na pasta `/home/debian/`
 
 
 ```
@@ -238,7 +283,12 @@ Este programa tem que ser executado com superusário.
 
 ## 3.3. Módulo de sinalização
 
-O sistema de sinalização de setas e iluminação
+O sistema de sinalização de setas e iluminação é o mesmo usado pelo [BRElétrico](https://github.com/Tecnomobele-FGA/Modulo-luzes).
+O GG tem já tem as chaves e iluminação e o sistema convencional é basicamente com relés e chaves ligando diretamente a sinalização.
+
+A proposta é retirar a fiação atual do sistema de luzes e buzina e fazer um projeto completamente novo com base na placa de sinalização já disponível.
+
+A foto a seguir mostra o "cabine" do GG onde vamos ter que instalar o novo sistema de sinalização.
 
 ![](fotos/IMG_3780.jpeg)
 
@@ -248,32 +298,11 @@ O sistema de sinalização de setas e iluminação
 
 # 4.1. Software Módulo instrumentação 
 
-```
- Veiculo Eletrico BREletrico GamaGolfe 
-  inicio  23/11/2017 para medir a temperatura e mostrar os dados no LCD 
-  2018/02/05 - Upgrade para medicao de Corrente e Tensao
-  2018/08/26 - Colocando o display no painel versao com Arduino Mega
-             - Instalando medidor de velocidade no pino 2 (Interrupcao)
-  2018/09/08 - Odometro para calibrar o velocimetro 
-             - Gravacao em EEPROM
-  2018/09/13 - Calibracao Odometro. 210-170=40 pulsos Distancia 8.3metros           
-               1 pulso = 8.30 / 40 = 0,2075 metro
-  2021/08/14 - Fazendo o teste com UNO LCD GPS e Radio LoRa no carro de Golfe
-  2022/02/22 - Placa PCB BReletrico_nano_instrum_can_2022.sch
-               Arduino Nano, INA219, MCP2551 CAN, Velocidade, Sensores hardwire programaveis
-               ina219 OK
-               Interrupcao D3 ok
-               Entrada analógica A0 - A3 ok  
-  2022/02/27 - Mandando Valor de Velocidade, Tensao via CAN
-               A cada 5 decimos de segundos é mandando uma mensagem via CAN
-  2022/02/28 - Can funcionou a 125kbps 
-               Funcionou com o dicionario de dados BRELETmotorV2.dbc
-               python3 -m cantools monitor -c can0 -B 125000 src/DBC/BRELETmotorV2.dbc    
+O módulo de instrumantação tem um Arduino Nano como microcontrolador.
+O programa usa a biblioteca CAN da 
+[travis-ci Arduino MCP2515 CAN interface library](https://travis-ci.org/autowp/arduino-mcp2515).
 
-```
-
-
-O loop principal do programa manda a cada meio segundo dois datagramas no CAN0.
+O programa basicamente mede os dados velocidade e dados elétricos e mostra no display a cada ciclo do programa principal e a cada 500 milisegundos disponibiliza estes dados no barramento CAN por meio de um datagram conforme mostrado no trecho do programa principal do Arduino.
 
 
 ```
@@ -281,13 +310,11 @@ void loop(void) {
  char c;
  le_sensores();
  le_velocidade();
- le_ina219();
- /* imprimindo no LCD */
- u8g.firstPage();  
+ le_ina219(); 
+ u8g.firstPage();  /* imprimindo no LCD */
  do {
       draw();   
  } while( u8g.nextPage() );
- /* Fim impressao LCD */
  if (tempor_can1 >= 5)
  {
   tempor_can1=0;
@@ -319,13 +346,34 @@ void loop(void) {
   canMsg1.data[6] = 0xFF; 
   canMsg1.data[7] = 0xFF;
   mcp2515.sendMessage(&canMsg1);
-  //Serial.write("message sent");
  }
 } 
 ```
+O programa garante que as duas datagramas não são inseridos um aoutras do outro no barramento para garantr tempo de processamento ao computador de bordo.
+A velcidade de comunicação é de 125kbps. 
+
+O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/BRELETmotorV2.dbc`    
+
+Para ver o dicionário pode se usar o comando `python3 -m cantools monitor -c can0 -B 125000 src/DBC/BRELETmotorV2.dbc`    
+
 
 # 4.2. Software OBC
-Monitora o barramento CAN e disponibiliza o dado lido nosregistradores do MODBUS.
+
+O programa do OBC tem que inicializar o CAN0, habilitar as chaves e leds do painel, abrir a porta serial do GPS e monitorar os dados do barramento CAN e gravar estes dados num banco de dados no próprio OBC.
+
+Além disso, o programa também precisa disponibilizar os dados para acesso via internet (quando está ligada na rede intranet do campus) em tempo real por meio de um protocolo de comunicação. 
+
+Escolheu-se usar o sistema gerenciador de banco de dados MariaDB que implementa o padrão SQL.
+O OBC neste caso foi configurado como servidor de banco de dados e pode receber requisições via comandos SQL pela internet.
+
+Para a comunicação em tempo real, escolheu-se o protocolo MODBUS-IP onde o OBC funciona como estação escravo.
+
+O programa a seguir mostra parte da implementação do servidor MODBUS-IP e o monitoramento do barramento CAN. 
+
+Não se teve nessa fase preocupação com a otimização dos recursos no OBC e por isso o programa foi feito em Python priorizando o entendimento do código e facilidade de implementação.
+
+Criou-se um objeto Painel que faz todas as operações de leitura das chaves e acionamento dos leds.
+
 
 ```
 #!/bin/python3
