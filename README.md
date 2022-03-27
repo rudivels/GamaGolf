@@ -197,6 +197,9 @@ Os pinos usados são:
 | GPIO 51 | Led 2    para GND | P9 - 16  | 
 | GPIO 125 | Led 3    para GND | P9 - 27  | 
 | AIN0    | Monitorar a tensão Vcc | P9 - 39 |
+| UART 1 TXD | Serial SIM800   | P9 - 24 |
+| UART 1 RXD | Serial SIM800   | P9 - 26 | 
+
 
 Ordem numerico
 
@@ -218,27 +221,17 @@ Ordem numerico
 | CAN 0 RX | Barramento CAN | P9 - 19 |
 | CAN 0 TX | Barramento CAN | P9 - 20 |
 | GPIO 49 | Chave 2  para GND | P9 - 23  | 
+| UART 1 TXD | Serial SIM800   | P9 - 24 |
+| UART 1 RXD | Serial SIM800   | P9 - 26 | 
 | GPIO 125 | Led 3    para GND | P9 - 27  | 
 | AIN0    | Monitorar a tensão Vcc | P9 - 39 |
 
 
-A ligação da bateria Litium 18650 tem os seguintes pinos
-
-
-| Beagle  | Designação            | pinos | 
-|:--------|:---------------:|:-----:|
-| Battery | Battery connection pint | TP5 | 
-| Sense   | Battery voltage sense input, connecto to battery terminal  | TP6 | 
-| TS | Temperature sense input  (termistor) | TP7 | 
-| GND  | System ground  | TP8 | 
-
-[Tutorial para ligar a bateria 1 ](http://beaglebone-asterisk.raspbx.org/uninterruptible-power-supply-ups-for-beaglebone-black-a-diy-project/)
-
-[Tutorial para ligar a bateria 2](https://community.element14.com/products/devtools/single-board-computers/next-genbeaglebone/b/blog/posts/bbb---rechargeable-on-board-battery-system)
 
 A placa de interface para ligar o BBB com a interface CAN é dado no esquema a seguir.
 
 ![](figuras/Placa_piggi_back_BBB.jpg)
+
 
 A montagem do OBC será no dashboard do veículo . 
 A vista frontal do OBC é mostrado a seguir. 
@@ -249,7 +242,27 @@ A vista de cima mostra a placa de instrumentação ao lado do computador de bord
 
 ![](fotos/Cima_OBC_GG.jpg)
 
-### 3.2.1. Configuração do BBB
+### 3.2.1 Bateria Litium  Nobreak
+
+O BBB tem um conector na placa para ligar uma bateria Litium 18650 e um termistor para monitorar a temperatura da bateria e que tem os seguintes pinos
+
+
+| Beagle  | Designação            | pinos | 
+|:--------|:---------------:|:-----:|
+| Battery | Battery connection pint | TP5 | 
+| Sense   | Battery voltage sense input, connecto to battery terminal  | TP6 | 
+| TS | Temperature sense input  (termistor) | TP7 | 
+| GND  | System ground  | TP8 | 
+
+Os pinos TP5 e TP6 foram interligados (curto) e para emular o termistor foi colocado um resistor de 10K Ohms entre os terminais TP8 e TP7.
+O conector positivo da bateria foi colocado no TP5 e TP6 enquanto o pino negativo foi colocado no TP8.
+
+[Tutorial para ligar a bateria 1 ](http://beaglebone-asterisk.raspbx.org/uninterruptible-power-supply-ups-for-beaglebone-black-a-diy-project/)
+
+[Tutorial para ligar a bateria 2](https://community.element14.com/products/devtools/single-board-computers/next-genbeaglebone/b/blog/posts/bbb---rechargeable-on-board-battery-system)
+
+
+### 3.2.2. Configuração do CAN do BBB
 
 A configuração BBB para habilitar o CAN BUS é diferente do [Pocket Beagle ](https://github.com/Tecnomobele-FGA/Computador-de-bordo).
 
@@ -283,7 +296,68 @@ echo "Pinos de CAN0 configurados!..."
 
 Este programa tem que ser executado com superusário.
 
+### 3.2.3. Configurando o GPS
 
+O GPS usado é o Módulo GPS GY-NEO6MV2 mostrado na foto a seguir. 
+
+![](fotos/Foto_GPS.jpg)
+
+Ele está ligado na porta serial UART4. 
+
+O módulo GPS tem as seguintes características.
+
+* Alimentação: de 3,3 V à 5 V DC
+* Corrente de operação: entre 35 mA e 50 mA
+* Comunicação serial/TTL 3.3V
+* Antena embutida
+
+
+| Pino | 	Função no GPS | Ligação Beagle Bone Black |
+|:----:|:--------------:|:--------------:|
+| 1 | Vcc    | Vcc pino P9-3 |
+| 2 | RX in  | TX4 pino P9-13 |
+| 3 | TX out | RX4 pino P9-11 |
+| 4 | GND    | GND pino P9-1 |
+
+Observe que o TX do Beagle entre no RX do GPS, pois o GPS está funcionando como equipamento de terminal de dados e por isso o cabo tem que ser cruzado ou do tipo *cross-over*
+
+Para usar a porta serial é preciso verificar se a porta serial está instalada no kernel e isso pode se conferir com o comando `dmesg | grep tty`
+
+O próximo passo é configurar o sistema operacional para acessar as portas. 
+Este procedimento pode ser feito de duas formas. 
+A primeira é configurar os pinos da porta serial por meio do `confog-pin` conforme o trecho a seguir.
+
+```
+config-pin P9.11 uart
+config-pin P9.13 uart
+```
+
+Outra opção é incluir no arquivo `/boot/uEnv.txt` o seguinte trecho de comandos : 
+
+```
+enable_uboot_overlays=1
+### Habiltando serial 4 Rudi
+uboot_overlay_addr2=/lib/firmware/BB-UART4-00A0.dtbo
+```
+
+Estes dois procedimentos são excludentes, ou seja, pode se usar somente uma opção. 
+Optei para o primeiro que é mais flexível.
+
+
+### 3.2.4. Modem GPRS SIM800L
+
+Uma opção para melhorar a rede de dados foi introduzir um modem 
+
+![](fotos/Foto_SIM800L.jpg)
+
+| Pino | 	Função no SIM800L | Ligação Beagle Bone Black |
+|:----:|:--------------:|:--------------:|
+| 1 | Antenna | 
+| 2 | Vdd -5V | Vcc pino P9-5 (Diode) |
+| 3 | Reset   | 
+| 3 | RX      | UART TX1 pino P9-24 |
+| 4 | TX      | UART RX1 pino P9-26 |
+| 6 | GND     | GND pino P9-1 |
 
 ## 3.3. Módulo de sinalização
 
@@ -306,7 +380,10 @@ O módulo de instrumantação tem um Arduino Nano como microcontrolador.
 O programa usa a biblioteca CAN da 
 [travis-ci Arduino MCP2515 CAN interface library](https://travis-ci.org/autowp/arduino-mcp2515).
 
+Uma cópia do programa está na pasta `/home/debian/src/Arduino/BREletrica_Sensor_Can_LCD_2022.ino` do Beagle Bone Black. 
+
 O programa basicamente mede os dados velocidade e dados elétricos e mostra no display a cada ciclo do programa principal e a cada 500 milisegundos disponibiliza estes dados no barramento CAN por meio de um datagram conforme mostrado no trecho do programa principal do Arduino.
+
 
 
 ```
@@ -353,7 +430,7 @@ void loop(void) {
  }
 } 
 ```
-O programa garante que as duas datagramas não são inseridos um aoutras do outro no barramento para garantr tempo de processamento ao computador de bordo.
+O programa garante que as duas datagramas não são inseridos um apos a outra no barramento para garantr tempo de processamento ao computador de bordo.
 A velcidade de comunicação é de 125kbps. 
 
 O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/BRELETmotorV2.dbc`    
@@ -369,6 +446,45 @@ Além disso, o programa também precisa disponibilizar os dados para acesso via 
 
 Escolheu-se usar o sistema gerenciador de banco de dados MariaDB que implementa o padrão SQL.
 O OBC neste caso foi configurado como servidor de banco de dados e pode receber requisições via comandos SQL pela internet.
+
+## 4.2.1. Configurando o banco de dados
+
+O procedimento para configurar o banco de dados é baseado no [tutorial neste link](https://github.com/Tecnomobele-FGA/Computador-de-bordo/tree/master/Datalogger_Scada)
+
+Entretanto o nome do banco do dados mudamos para `trajetorio`.
+
+```
+MariaDB [(none)]> create database trajetorio;
+MariaDB [(none)]> use trajetorio;
+```
+
+
+Quando o chave1 está habilitado o OBC grava os dados do trajetório no banco de dados com uma frequencia de pelo menos um registro por segundo. 
+
+O GPS disponibiliza o dado a cada segundo, enquanto o CAN envio os dados a cada 500 ms. 
+
+Uma opção é juntar os dados do GPS e do CAN em um registro. 
+
+
+```
+MariaDB [trajetorio]> create table  registro_trajeto (hora timestamp, latitude float, longitude float, velocidade_gps float , velocidade float , tensao float , corrente float ); 
+```
+
+
+Uma outra opção 
+e criar duas tabelas separadas, uma para o GPS e outro para a CAN e ainda outrs, cada um com sua taxa de amostragem própria.
+
+```
+MariaDB [trajetorio]> create table registro_GPS (hora timestamp(3), latitude float, longitude float, velocidade_gps float , altitude float );
+MariaDB [trajetorio]> create table registro_bateria (hora timestamp(3), tensao float, corrente float, temperatura float ); 
+MariaDB [trajetorio]> create table registro_auxiliar (hora timestamp(3), tensao_aux float, corrente_aux float, energia_aux float ); 
+```
+
+Veja que o `timestamp(3)` para poder gravar fraçoes de segundos no banco.
+
+Neste último caso, vou ter que fazer um pos-processamento dos dados gravados no MariaDB para sincronizar as diversas tabelas.  
+
+## 4.2.2. Modbus-IP tempo real
 
 Para a comunicação em tempo real, escolheu-se o protocolo MODBUS-IP onde o OBC funciona como estação escravo.
 
