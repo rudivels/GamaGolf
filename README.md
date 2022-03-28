@@ -346,7 +346,7 @@ Optei para o primeiro que é mais flexível.
 
 ### 3.2.4. Modem GPRS SIM800L
 
-Uma opção para melhorar a rede de dados foi introduzir um modem 
+Uma opção para melhorar a rede de dados foi introduzir um modem GSM.
 
 ![](fotos/Foto_SIM800L.jpg)
 
@@ -374,7 +374,234 @@ A foto a seguir mostra o "cabine" do GG onde vamos ter que instalar o novo siste
 
 # 4. Software
 
-# 4.1. Software Módulo instrumentação 
+# 4.1. Dicionario de dados CAN
+
+Estamos aproveitando o dicionário de dados do BRElétrico.
+ 
+Achamos os PGN da velocidade do veículo `2432614288`, dados do controlador do motor elétrico de tração `2416478878`.
+
+Ainda falta descobrir o PGN da tensão e corrente da bateria para poder mandar os dados do bateria estacionário de 12V.
+
+
+
+```
+BO_ 2432614288 MODINSTRUM: 8 Vector__XXX
+ SG_ Velocity : 0|16@1+ (1,0) [0|200] "km/h" Vector__XXX
+
+BO_ 2416544414 EVEC1: 8 Vector__XXX
+ SG_ EngineSpeed : 0|16@1+ (1,0) [0|10000] "rpm" Vector__XXX
+ SG_ Mileage     : 16|16@1+ (0.1,0) [0|300000] "km" Vector__XXX
+ SG_ MotorTorque : 32|16@1+ (0.1,-1000) [-1000|1000] "Nm" Vector__XXX
+
+BO_ 2416478878 EVEC2: 8 Vector__XXX
+ SG_ Voltage : 0|16@1+ (0.1,-1000) [0|500] "v" Vector__XXX
+ SG_ Current :16|16@1+ (0.1,-1000) [-500|500] "A" Vector__XXX
+ SG_ Temperature :32|8@1+ (0.1,40) [0|100] "A" Vector__XXX
+ SG_ Forward  :40|1@0+ (1,0) [0|0] "-" Vector__XXX
+ SG_ Backward :41|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ SG_ Brake    :42|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ SG_ Stop     :43|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ SG_ Ready    :46|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ 
+ SG_ IGBT         :48|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ SG_ OverCurrent  :49|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ SG_ UnderVoltage :50|1@0+ (1,0) [0|0] "-" Vector__XXX  
+ SG_ OverVoltage  :51|1@0+ (1,0) [0|0] "-" Vector__XXX  
+ SG_ OverHeating  :52|1@0+ (1,0) [0|0] "-" Vector__XXX    
+ SG_ OverSpeed    :53|1@0+ (1,0) [0|0] "-" Vector__XXX   
+ SG_ BMS          :54|1@0+ (1,0) [0|0] "-" Vector__XXX 
+ SG_ Error75g     :55|1@0+ (1,0) [0|0] "-" Vector__XXX     
+
+```
+
+Vamos colocar por enquanto um PGN provisório `2416609950` e fazer um dicionário próprio. 
+
+```
+BO_ 2416609950 BATERIA12V: 8 Vector__XXX
+ SG_ Voltage12 : 0|16@1+ (1,0) [0|20] "v" Vector__XXX
+ SG_ Current12 :16|16@1+ (1,0) [-5|5] "A" Vector__XXX
+
+CM_ BO_ 2416609950 "Monitor INA219";
+CM_ SG_ 2416609950 Voltage12 "Tensao da bateria estacionaria ";
+CM_ SG_ 2416609950 Current12 "Corrente da bateria estacionaria ";
+```
+
+Para conferir o DBC pode se usar o comando `$ cantools dump GamaGolfV1.dbc` que gera automaticamente a estrutura do DBC.
+
+```
+cantools dump GamaGolfV1.dbc 
+================================= Messages =================================
+
+  ------------------------------------------------------------------------
+
+  Name:       MODINSTRUM
+  Id:         0x10febf90
+      Priority:       4
+      PGN:            0x0febf
+      Source:         0x90
+      Destination:    All
+      Format:         PDU 2
+  Length:     8 bytes
+  Cycle time: - ms
+  Senders:    -
+  Layout:
+
+                          Bit
+
+             7   6   5   4   3   2   1   0
+           +---+---+---+---+---+---+---+---+
+         0 |------------------------------x|
+           +---+---+---+---+---+---+---+---+
+         1 |<------------------------------|
+           +---+---+---+---+---+---+---+---+
+             +-- Velocity
+           +---+---+---+---+---+---+---+---+
+     B   2 |   |   |   |   |   |   |   |   |
+     y     +---+---+---+---+---+---+---+---+
+     t   3 |   |   |   |   |   |   |   |   |
+     e     +---+---+---+---+---+---+---+---+
+         4 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+         5 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+         6 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+         7 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+
+  Signal tree:
+
+    -- {root}
+       +-- Velocity
+
+
+  ------------------------------------------------------------------------
+
+  Name:       EVEC2
+  Id:         0x10088a9e
+      Priority:       4
+      PGN:            0x00800
+      Source:         0x9e
+      Destination:    0x8a
+      Format:         PDU 1
+  Length:     8 bytes
+  Cycle time: - ms
+  Senders:    -
+  Layout:
+
+                          Bit
+
+             7   6   5   4   3   2   1   0
+           +---+---+---+---+---+---+---+---+
+         0 |------------------------------x|
+           +---+---+---+---+---+---+---+---+
+         1 |<------------------------------|
+           +---+---+---+---+---+---+---+---+
+             +-- Voltage
+           +---+---+---+---+---+---+---+---+
+         2 |------------------------------x|
+           +---+---+---+---+---+---+---+---+
+         3 |<------------------------------|
+           +---+---+---+---+---+---+---+---+
+             +-- Current
+           +---+---+---+---+---+---+---+---+
+         4 |<-----------------------------x|
+           +---+---+---+---+---+---+---+---+
+             +-- Temperature
+           +---+---+---+---+---+---+---+---+
+     B   5 |   |<-x|   |   |<-x|<-x|<-x|<-x|
+     y     +---+---+---+---+---+---+---+---+
+     t           |           |   |   |   +-- Forward
+     e           |           |   |   +-- Backward
+                 |           |   +-- Brake
+                 |           +-- Stop
+                 +-- Ready
+           +---+---+---+---+---+---+---+---+
+         6 |<-x|<-x|<-x|<-x|<-x|<-x|<-x|<-x|
+           +---+---+---+---+---+---+---+---+
+             |   |   |   |   |   |   |   +-- IGBT
+             |   |   |   |   |   |   +-- OverCurrent
+             |   |   |   |   |   +-- UnderVoltage
+             |   |   |   |   +-- OverVoltage
+             |   |   |   +-- OverHeating
+             |   |   +-- OverSpeed
+             |   +-- BMS
+             +-- Error75g
+           +---+---+---+---+---+---+---+---+
+         7 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+
+  Signal tree:
+
+    -- {root}
+       +-- Voltage
+       +-- Current
+       +-- Temperature
+       +-- Ready
+       +-- Stop
+       +-- Brake
+       +-- Backward
+       +-- Forward
+       +-- Error75g
+       +-- BMS
+       +-- OverSpeed
+       +-- OverHeating
+       +-- OverVoltage
+       +-- UnderVoltage
+       +-- OverCurrent
+       +-- IGBT
+
+  ------------------------------------------------------------------------
+
+  Name:       BATERIA12V
+  Id:         0x100a8a9e
+      Priority:       4
+      PGN:            0x00a00
+      Source:         0x9e
+      Destination:    0x8a
+      Format:         PDU 1
+  Length:     8 bytes
+  Cycle time: - ms
+  Senders:    -
+  Layout:
+
+                          Bit
+
+             7   6   5   4   3   2   1   0
+           +---+---+---+---+---+---+---+---+
+         0 |------------------------------x|
+           +---+---+---+---+---+---+---+---+
+         1 |<------------------------------|
+           +---+---+---+---+---+---+---+---+
+             +-- Voltage12
+           +---+---+---+---+---+---+---+---+
+         2 |------------------------------x|
+     B     +---+---+---+---+---+---+---+---+
+     y   3 |<------------------------------|
+     t     +---+---+---+---+---+---+---+---+
+     e       +-- Current12
+           +---+---+---+---+---+---+---+---+
+         4 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+         5 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+         6 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+         7 |   |   |   |   |   |   |   |   |
+           +---+---+---+---+---+---+---+---+
+
+  Signal tree:
+
+    -- {root}
+       +-- Voltage12
+       +-- Current12
+
+  ------------------------------------------------------------------------
+
+```
+
+
+# 4.2. Software Módulo instrumentação 
 
 O módulo de instrumantação tem um Arduino Nano como microcontrolador.
 O programa usa a biblioteca CAN da 
