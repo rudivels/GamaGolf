@@ -156,6 +156,9 @@ Os pinos 1,2, e 8 do conector J5 ligam o sensor
 
 ![](figuras/esquema_sensor_corrente.jpg)
 
+### 3.1.2. calibração do sensor de corrente
+Necessidade de calibração e descrever seu procedimento.
+
 
 ## 3.2. Computador de bordo OBC
 
@@ -428,6 +431,8 @@ CM_ SG_ 2416609950 Current12 "Corrente da bateria estacionaria ";
 
 Para conferir o DBC pode se usar o comando `$ cantools dump GamaGolfV1.dbc` que gera automaticamente a estrutura do DBC.
 
+Esse comando funcionou no meu computador MAC e no Desktop Linux, mais nao funcionou no OBC com linux embarcada.
+
 ```
 cantools dump GamaGolfV1.dbc 
 ================================= Messages =================================
@@ -600,6 +605,13 @@ cantools dump GamaGolfV1.dbc
 
 ```
 
+O comando `cantools` não funcionou diretamenteno linux embarcada do OBC.
+Além do mais, se acessar cantools por meio do python `python3 -m cantools` ele indica a falta da biblioteca `matplotlib`.
+
+Uma conferencia com `pip3 list`mostra que a biblioteca está instalada. Eu não sei se isso depende da instalação do `cantools` no python ou o fato de que eu uso o Debian no modo gráfico no OBC.
+
+Entretanto, é possivel importar a biblioteca `cantools` normalmente num programa python e executar suas funções que não usam um suporte gráfico. 
+
 
 # 4.2. Software Módulo instrumentação 
 
@@ -643,29 +655,121 @@ void loop(void) {
   tempor_can2=0;
   Voltage_Int=Sensor_1_Int;
   Current_Int=Sensor_2_Int;
-  canMsg1.can_id = 0x10088A9E | CAN_EFF_FLAG; 
+  canMsg1.can_id = 0x10088A9E | CAN_EFF_FLAG; // 2416478878
   canMsg1.can_dlc = 8;
   canMsg1.data[0] = (Voltage_Int & 0x00FF);  
   canMsg1.data[1] = (Voltage_Int >> 8) & 0x00FF;
   canMsg1.data[2] = (Current_Int & 0x00FF); 
   canMsg1.data[3] = (Current_Int >> 8) & 0x00FF;  
-  canMsg1.data[4] = 0xFF;  
-  canMsg1.data[5] = 0xFF;  
+  canMsg1.data[4] = 0xFF;  // temperatura 8 bits
+  canMsg1.data[5] = 0xFF;  // 0-forward, 1-backward, 2-brake, 3-stop, 6-ready
   canMsg1.data[6] = 0xFF; 
   canMsg1.data[7] = 0xFF;
   mcp2515.sendMessage(&canMsg1);
  }
-} 
+ if (tempor_can3 >= 5)
+ {
+  tempor_can3=0;
+  canMsg1.can_id = 0x100A8A9E | CAN_EFF_FLAG; //  PGN Proprio Rudi
+  canMsg1.can_dlc = 8;
+  canMsg1.data[0] = (Tensao12v & 0x00FF);  
+  canMsg1.data[1] = (Tensao12v >> 8) & 0x00FF;
+  canMsg1.data[2] = (Corrente12v & 0x00FF); 
+  canMsg1.data[3] = (Corrente12v >> 8) & 0x00FF;  
+  canMsg1.data[4] = 0xFF;   
+  canMsg1.data[5] = 0xFF;   
+  canMsg1.data[6] = 0xFF; 
+  canMsg1.data[7] = 0xFF;
+  mcp2515.sendMessage(&canMsg1);
+ }
+}
 ```
-O programa garante que as duas datagramas não são inseridos um apos a outra no barramento para garantr tempo de processamento ao computador de bordo.
+
+O programa garante que as duas datagramas não são inseridos um apos a outra no barramento para garantir tempo de processamento ao computador de bordo.
 A velcidade de comunicação é de 125kbps. 
 
-O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/BRELETmotorV2.dbc`    
-
-Para ver o dicionário pode se usar o comando `python3 -m cantools monitor -c can0 -B 125000 src/DBC/BRELETmotorV2.dbc`    
 
 
-# 4.2. Software OBC
+# 4.3. Software OBC leitura CAN
+
+O programa do OBC tem que inicializar o CAN0, habilitar as chaves e leds do painel, abrir a porta serial do GPS e monitorar os dados do barramento CAN e gravar estes dados num banco de dados no próprio OBC.
+
+O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/GamaGolfV1.dbc`    
+
+A comunicação do barramento CAN pode ser monitorado de forma direta com o utilitário `candump`
+
+```
+debian@beaglebone:~/src/OBC_can$ candump can0 -td 
+ (000.000000)  can0  10FEBF90   [8]  00 00 FF FF FF FF FF FF
+ (000.001140)  can0  100A8A9E   [8]  9A 05 26 00 FF FF FF FF
+ (000.001135)  can0  10088A9E   [8]  00 00 72 00 FF FF FF FF
+ (000.466983)  can0  10FEBF90   [8]  00 00 FF FF FF FF FF FF
+ (000.001113)  can0  100A8A9E   [8]  9A 05 27 00 FF FF FF FF
+ (000.001149)  can0  10088A9E   [8]  00 00 16 00 FF FF FF FF
+ (000.467307)  can0  10FEBF90   [8]  00 00 FF FF FF FF FF FF
+ (000.001132)  can0  100A8A9E   [8]  9A 05 27 00 FF FF FF FF
+ (000.001137)  can0  10088A9E   [8]  00 00 0B 00 FF FF FF FF
+```
+
+Pelo problema anterior mencionado com o cantools não é posível monitorar a comunicação com o comando `python3 -m cantools monitor -c can0 -B 125000 src/DBC/BRELETmotorV2.dbc`    
+
+Por isso fizemos um programa simples no python para monitorar a porta can e decodificando os dados. Este programa se encontra na pasta `src/OBC_can/`
+
+```
+#!/bin/python3
+#!/usr/bin/env python3
+# arquivo /home/debian/src/OBC_can/can_monitor.py
+
+import can 
+import cantools
+import time
+import datetime
+from pprint import pprint
+from time import sleep
+
+db = cantools.database.load_file('../DBC/GamaGolfV1.dbc')
+can_bus=can.interface.Bus(bustype='socketcan', channel='can0', bitrate=125000)
+print (can_bus.state)
+
+while True:
+    sleep(0.001)
+    try: 
+        mensagem = can_bus.recv(0.0)
+    except: 
+        print('erro can')
+    if mensagem is not None :
+        mm=db.decode_message(mensagem.arbitration_id, mensagem.data) 
+        pprint(mm)
+        print ('  ')
+```
+
+a saída do programa é 
+
+```
+{'Velocity': 0}
+  
+{'Current12': 39, 'Voltage12': 1434}
+  
+{'BMS': 1,
+ 'Backward': 1,
+ 'Brake': 1,
+ 'Current': 79.0,
+ 'Error75g': 1,
+ 'Forward': 1,
+ 'IGBT': 1,
+ 'OverCurrent': 1,
+ 'OverHeating': 1,
+ 'OverSpeed': 1,
+ 'OverVoltage': 1,
+ 'Ready': 1,
+ 'Stop': 1,
+ 'Temperature': 65.5,
+ 'UnderVoltage': 1,
+ 'Voltage': 0.0}
+```
+
+
+# 4.4. Software OBC Banco de Dados 
 
 O programa do OBC tem que inicializar o CAN0, habilitar as chaves e leds do painel, abrir a porta serial do GPS e monitorar os dados do barramento CAN e gravar estes dados num banco de dados no próprio OBC.
 
@@ -674,32 +778,86 @@ Além disso, o programa também precisa disponibilizar os dados para acesso via 
 Escolheu-se usar o sistema gerenciador de banco de dados MariaDB que implementa o padrão SQL.
 O OBC neste caso foi configurado como servidor de banco de dados e pode receber requisições via comandos SQL pela internet.
 
-## 4.2.1. Configurando o banco de dados
+## 4.4.1. Acessando o banco de dados
 
 O procedimento para configurar o banco de dados é baseado no [tutorial neste link](https://github.com/Tecnomobele-FGA/Computador-de-bordo/tree/master/Datalogger_Scada)
-
-Entretanto o nome do banco do dados mudamos para `trajetorio`.
-
-```
-MariaDB [(none)]> create database trajetorio;
-MariaDB [(none)]> use trajetorio;
-```
 
 
 Quando o chave1 está habilitado o OBC grava os dados do trajetório no banco de dados com uma frequencia de pelo menos um registro por segundo. 
 
 O GPS disponibiliza o dado a cada segundo, enquanto o CAN envio os dados a cada 500 ms. 
 
-Uma opção é juntar os dados do GPS e do CAN em um registro. 
+
+Para entrar no MariaDB `mysql -p` e a senha é sleutel. 
+
+```
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| academic           |
+| information_schema |
+| mysql              |
+| performance_schema |
+| trajetorio         |
++--------------------+
+5 rows in set (0.002 sec)
+```
+
+A primeira coisa é selecionar a database do OBC com o comando `use trajetorio`
+
+```
+MariaDB [trajetorio]> show tables;
++----------------------+
+| Tables_in_trajetorio |
++----------------------+
+| registro_CAN         |
+| registro_GPS         |
+| registro_auxiliar    |
+| registro_trajeto     |
++----------------------+
+4 rows in set (0.002 sec)
+```
+
+No banco temos varias tabelas separadas:
+
+* registro_GPS guarda os dados de posição e velocidade medido pelo GPS a cada degundo;
+* registro_CAN guarda os dados de velocidade do carro e os valores de tensão e corrente da bateria de tração obtido pela CAN;
+* registro_auxiliar guarda os valores de tensão e corrente da bateria auxiliar estacionária de 12V que é alimentado pelo painel solar, também obtido pela CAN.
 
 
 ```
-MariaDB [trajetorio]> create table  registro_trajeto (hora timestamp, latitude float, longitude float, velocidade_gps float , velocidade float , tensao float , corrente float ); 
+MariaDB [trajetorio]> select * from registro_CAN order by hora desc limit 5;
++-------------------------+--------+----------+------------+-------------+
+| hora                    | tensao | corrente | velocidade | temperatura |
++-------------------------+--------+----------+------------+-------------+
+| 2022-06-17 19:03:27.290 |      0 |      189 |          0 |        NULL |
+| 2022-06-17 19:03:27.262 |      0 |      158 |          0 |        NULL |
+| 2022-06-17 19:03:27.232 |      0 |      158 |          0 |        NULL |
+| 2022-06-17 19:03:27.184 |      0 |      158 |          0 |        NULL |
+| 2022-06-17 19:03:27.136 |      0 |       62 |          0 |        NULL |
++-------------------------+--------+----------+------------+-------------+
+5 rows in set (0.026 sec)
 ```
 
+Os dados gravados pelo GPS são:
 
-Uma outra opção 
-e criar duas tabelas separadas, uma para o GPS e outro para a CAN e ainda outrs, cada um com sua taxa de amostragem própria.
+```
+MariaDB [trajetorio]> select * from registro_GPS order by hora desc limit 5;
++-------------------------+----------+-----------+----------------+----------+
+| hora                    | latitude | longitude | velocidade_gps | altitude |
++-------------------------+----------+-----------+----------------+----------+
+| 2022-04-01 19:48:05.664 |  1559.42 |   4802.65 |          0.393 |        0 |
+| 2022-04-01 19:48:04.661 |  1559.42 |   4802.65 |          0.119 |        0 |
+| 2022-04-01 19:48:03.665 |  1559.42 |   4802.65 |          0.848 |        0 |
+| 2022-04-01 19:48:02.664 |  1559.42 |   4802.65 |          0.545 |        0 |
+| 2022-04-01 19:48:01.969 |  1559.42 |   4802.65 |          0.619 |        0 |
++-------------------------+----------+-----------+----------------+----------+
+5 rows in set (0.007 sec)
+
+```
+
+Os comandos uados para criar os tabelas são mostra a seguir.
 
 ```
 MariaDB [trajetorio]> create table registro_GPS (hora timestamp(3), latitude float, longitude float, velocidade_gps float , altitude float );
@@ -709,9 +867,85 @@ MariaDB [trajetorio]> create table registro_auxiliar (hora timestamp(3), tensao_
 
 Veja que o `timestamp(3)` para poder gravar fraçoes de segundos no banco.
 
-Neste último caso, vou ter que fazer um pos-processamento dos dados gravados no MariaDB para sincronizar as diversas tabelas.  
+Para usar estes dados será necessário fazer um pos-processamento dos dados gravados no MariaDB para sincronizar as diversas tabelas.  
 
-## 4.2.2. Modbus-IP tempo real
+## 4.4.2. Gravando dados do GPS no MariaDB
+
+O primeiro programa mostra uma rotina de teste para gravar os dados do GPS no MariaDB.
+Os dados são somente gravados quando temos dados validos no latitue e longitude.
+
+```
+#!/usr/bin/env python3
+# arquivo /home/debian/src/OBC_gps_logger/gps_logger_test.py
+
+import mysql.connector
+from pyModbusTCP.server import ModbusServer, DataBank
+import os
+import time
+import datetime
+import sys
+import requests
+import serial
+import pynmea2
+import time
+
+ser = serial.Serial("/dev/ttyS4",9600, timeout=0.5)
+
+class GPS:
+        def __init__ (self):
+                ser.flushInput()
+                ser.flushInput()
+        def read(self):
+                while (ser.inWaiting()==0):
+                        time.sleep(0.01)
+                        pass
+                G = ser.readline()
+                self.error=0
+                self.coordenados=0
+                if G != b'' :
+                        #self.NMEA = G
+                        Gs = G.strip()
+                        Gd = Gs.decode(encoding='UTF-8',errors='replace')
+                        self.NMEA=Gd
+                        Gd_vetor = Gd.split(',')
+                        self.code = Gd_vetor[0]
+                        if Gd_vetor[0]== '$GPRMC':  # '$GPGGA':
+                                #self.coordenados=1
+                                try :
+                                        self.msg = pynmea2.parse(Gd)
+                                        self.coordenados=1
+                                except : self.error = 1
+
+
+conn = mysql.connector.connect(user='debian', password='sleutel' , host='127.0.0.1', database='trajetorio')
+curs = conn.cursor()
+myGPS=GPS()
+
+while True:
+    time.sleep(0.01)
+    Dia = datetime.date.today()
+    Hora = datetime.datetime.now()
+    myGPS.read()
+    if (myGPS.coordenados == 1) : 
+        Latitude =   myGPS.msg.lat
+        Longitude =  myGPS.msg.lon
+        Velocidade = myGPS.msg.spd_over_grnd
+        Altitude =   0 #myGPS.msg.altitude
+        horario = myGPS.msg.timestamp   ## falta testar.. !!!
+        s = "%s" % Hora + " , " + "%s" % Latitude + " , " + "%s" % Longitude + " , " +  "%s" % Velocidade + " , " + "%s" % Altitude
+        print (s)
+        if Latitude != '' :
+            if Longitude != '' :
+                curs.execute("INSERT INTO registro_GPS (hora, latitude, longitude , velocidade_gps , altitude ) values (%s , %s, %s, %s, %s)",(Hora, Latitude, Longitude, Velocidade, Altitude))
+                conn.commit()
+```
+
+
+## 4.4.3. Gravando dados da placa instrumentação no MariaDB
+
+
+
+# 4.5. Modbus-IP tempo real
 
 Para a comunicação em tempo real, escolheu-se o protocolo MODBUS-IP onde o OBC funciona como estação escravo.
 
