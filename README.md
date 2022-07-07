@@ -2,6 +2,9 @@
 
 link para arquivo original `Documentos/GitHub/GamaGolf`
 
+[github.com/rudivels/GamaGolf](https://github.com/rudivels/GamaGolf)
+
+# 1. Apresentação 
 O campus Gama tem a disposição um carro de golfe, que foi batizado com o nome de GamaGolge (GG). 
 Este veículo está sendo usado para o uso dia-a-dia das atividades de transporte de material e de pessoas do campus Gama e também está sendo usado para pesquisas e experimentos de mobilidade elétrica.
 
@@ -202,6 +205,9 @@ Os pinos usados são:
 | AIN0    | Monitorar a tensão Vcc | P9 - 39 |
 | UART 1 TXD | Serial SIM800   | P9 - 24 |
 | UART 1 RXD | Serial SIM800   | P9 - 26 | 
+| I2C SCL | Display OLED | P9 - 21 |
+| I2C SDA | Display OLED | P9 - 22 |
+
 
 
 Ordem numerico
@@ -223,6 +229,8 @@ Ordem numerico
 | GPIO 51 | Led 2    para GND | P9 - 16  | 
 | CAN 0 RX | Barramento CAN | P9 - 19 |
 | CAN 0 TX | Barramento CAN | P9 - 20 |
+| I2C SCL | Display OLED | P9 - 21 |
+| I2C SDA | Display OLED | P9 - 22 |
 | GPIO 49 | Chave 2  para GND | P9 - 23  | 
 | UART 1 TXD | Serial SIM800   | P9 - 24 |
 | UART 1 RXD | Serial SIM800   | P9 - 26 | 
@@ -328,7 +336,7 @@ Para usar a porta serial é preciso verificar se a porta serial está instalada 
 
 O próximo passo é configurar o sistema operacional para acessar as portas. 
 Este procedimento pode ser feito de duas formas. 
-A primeira é configurar os pinos da porta serial por meio do `confog-pin` conforme o trecho a seguir.
+A primeira é configurar os pinos da porta serial por meio do `config-pin` conforme o trecho a seguir.
 
 ```
 config-pin P9.11 uart
@@ -358,9 +366,30 @@ Uma opção para melhorar a rede de dados foi introduzir um modem GSM.
 | 1 | Antenna | 
 | 2 | Vdd -5V | Vcc pino P9-5 (Diode) |
 | 3 | Reset   | 
-| 3 | RX      | UART TX1 pino P9-24 |
-| 4 | TX      | UART RX1 pino P9-26 |
+| 4 | RX      | UART TX1 pino P9-24 |
+| 5 | TX      | UART RX1 pino P9-26 |
 | 6 | GND     | GND pino P9-1 |
+
+Veja aqui o [tutorial em para ligar o GPRS com Raspberry](https://bekyelectronics.com/sim800l-with-raspberry-pi/) e este [tutorial para implementar o protolcolo PPP] (https://circuitdigest.com/microcontroller-projects/how-to-tether-internet-on-raspberry-pi-using-sim800l-gsm-module) para ligar o Raspberry com a internet.
+
+### 3.2.5. Display OLED SDD1366
+
+| Pino | Função SDD1366 | Ligação Beagle Bone Black |
+|:----:|:--------------:|:--------------:|
+| 1 | GND | GND   |
+| 2 | Vcc | 3.3v  |
+| 3 | SCL | P9-21 |
+| 4 | SDA | P9-22 |
+
+A configuração dos pinos do Beagle é feito com os comandos.
+
+```
+config-pin P9.21 i2c
+config-pin P9.22 i2c
+```
+
+O programa `i2cdetect` do linux pode ser usado para testar o funcionamento do I2C. 
+
 
 ## 3.3. Módulo de sinalização
 
@@ -375,9 +404,143 @@ A foto a seguir mostra o "cabine" do GG onde vamos ter que instalar o novo siste
 
 
 
-# 4. Software
+# 4. Software do Computador de Bordo (OBC)
 
-# 4.1. Dicionario de dados CAN
+
+O software do OBC está organizado em 5 camadas conforme mostrada na figura.
+
+![](figuras/protocolos.jpg)
+
+Na camada 1 roda o programa no hardware específico periférico do OBC, como por exemplo o programa que roda no Modulo de Instrumentação ou o firmware do GPS. Os demais camadas são implementados no Beagle Bone Black.
+
+A estrutura a seguir mostra a organização dos itens.
+
+
+* 4.1. Camada 1 - Instrumentos
+* 4.1.1. Módulo Instrumentação
+* 4.1.2. GPS
+* 4.2. Camada 2 - Enlace de dados
+* 4.2.1. CAN
+* 4.2.2. TTY
+* 4.3. Camada 3 - Decodificando os dados
+* 4.3.1. J1939
+* 4.3.2. NMEA
+* 4.4. Camada 4 - Disponibilização e armazenamento dos dados
+* 4.4.1. SQL
+* 4.4.2. Modbus-IP
+* 4.5. Camada 5 - Aplicação
+* 4.5.1. Colab
+* 4.5.2. ScadaBR
+
+Configuração do Sistema Operacional Linux para rodar os diversos programas de forma concomitante.
+
+A configuração pode ser dividido em 3 partes:
+
+* Iniciar os serviços de rede (WiFi) e acesso via SSH ou USB - `boot`
+* Rotina shell com ferramentas do Linx Debian para configurar o hardware adicional do OBC por meio dos pinos do BBB para trabalhar com portas seriais, can e i2c - `config_uart_can_i2c.sh`
+* Rotina em python para mostrar o estado do BBB no Display OLED - `oled.py` 
+* Usar o `systemctl` para chamar os programas que ficarão carregados automaticamente na sequencia certa. O primeiro chamado é `config_uart_can_i2c.sh` em o segundo `oled.py`. As versoes finais estão no `/home/debian/bin/`. Em seguida os demais programs serão chamadas.
+
+ 
+ 
+| num. | nome | linguagem | pasta | descrição |
+|:----:|:-----|:----------|-------|-----------|
+| 1 | `config_uart_can_i2c.sh` | shell | /home/debian/bin/ | configuração dos pinos do BBB |
+| 2 | `oled.py` | python  | /home/debian/src/oled/ | mostrar os estado do BBB no display Oled |
+| 3 | inician rede CAN | shell | sudo /sbin/ip link set can1 up type can bitrate 125000 |  |
+| 4 | `OBC_can` | python | /home/debian/src/OBC_can/ |
+| 5 | `OBC_gps_logger` | python | /home/debian/src/OBC\_gps\_logger/ |
+
+
+## 4.1. Camada 1 - Instrumentos
+
+### 4.1.1. Programa do Módulo de Instrumentação 
+
+O módulo de instrumantação tem um Arduino Nano como microcontrolador.
+O programa usa a biblioteca CAN da 
+[travis-ci Arduino MCP2515 CAN interface library](https://travis-ci.org/autowp/arduino-mcp2515).
+
+Uma cópia do programa está na pasta `/home/debian/src/Arduino/BREletrica_Sensor_Can_LCD_2022.ino` do Beagle Bone Black. 
+
+O programa basicamente mede os dados velocidade e dados elétricos e mostra no display a cada ciclo do programa principal e a cada 500 milisegundos disponibiliza estes dados no barramento CAN por meio de um datagram conforme mostrado no trecho do programa principal do Arduino.
+
+O formato das mensagens no baramento CAN são apresentados na descrição do dicionário de dados.
+
+| tipo | Mensagem 1 | Mensagem 2 | Mensagem 3 |
+|:-----|:-----------|:-----------|------------|
+| int  | Velocidade | Voltage | Tensão 12V |
+| int  | Corrente    | | Corrente 12V |
+| bits | | status |
+
+O programa que está lista a seguir.
+
+
+```
+void loop(void) {
+ char c;
+ le_sensores();
+ le_velocidade();
+ le_ina219(); 
+ u8g.firstPage();  /* imprimindo no LCD */
+ do {
+      draw();   
+ } while( u8g.nextPage() );
+ if (tempor_can1 >= 5)
+ {
+  tempor_can1=0;
+  canMsg1.can_id = 0x10FEBF90 | CAN_EFF_FLAG;  //  testando com 0x90FEBF90 tambem funcionou
+  canMsg1.can_dlc = 8;
+  canMsg1.data[0] = (Velocidade_Int & 0x00FF); //  (Velocidade_Int & 0x00FF);
+  canMsg1.data[1] = (Velocidade_Int >> 8) & 0x00FF; //(Velocidade_Int >> 8) & 0x00FF;
+  canMsg1.data[2] = 0xFF;
+  canMsg1.data[3] = 0xFF;  
+  canMsg1.data[4] = 0xFF;  
+  canMsg1.data[5] = 0xFF;  
+  canMsg1.data[6] = 0xFF; 
+  canMsg1.data[7] = 0xFF;
+  mcp2515.sendMessage(&canMsg1);
+ } 
+ if (tempor_can2 >= 5)
+ {
+  tempor_can2=0;
+  Voltage_Int=Sensor_1_Int;
+  Current_Int=Sensor_2_Int;
+  canMsg1.can_id = 0x10088A9E | CAN_EFF_FLAG; // 2416478878
+  canMsg1.can_dlc = 8;
+  canMsg1.data[0] = (Voltage_Int & 0x00FF);  
+  canMsg1.data[1] = (Voltage_Int >> 8) & 0x00FF;
+  canMsg1.data[2] = (Current_Int & 0x00FF); 
+  canMsg1.data[3] = (Current_Int >> 8) & 0x00FF;  
+  canMsg1.data[4] = 0xFF;  // temperatura 8 bits
+  canMsg1.data[5] = 0xFF;  // 0-forward, 1-backward, 2-brake, 3-stop, 6-ready
+  canMsg1.data[6] = 0xFF; 
+  canMsg1.data[7] = 0xFF;
+  mcp2515.sendMessage(&canMsg1);
+ }
+ if (tempor_can3 >= 5)
+ {
+  tempor_can3=0;
+  canMsg1.can_id = 0x100A8A9E | CAN_EFF_FLAG; //  PGN Proprio Rudi
+  canMsg1.can_dlc = 8;
+  canMsg1.data[0] = (Tensao12v & 0x00FF);  
+  canMsg1.data[1] = (Tensao12v >> 8) & 0x00FF;
+  canMsg1.data[2] = (Corrente12v & 0x00FF); 
+  canMsg1.data[3] = (Corrente12v >> 8) & 0x00FF;  
+  canMsg1.data[4] = 0xFF;   
+  canMsg1.data[5] = 0xFF;   
+  canMsg1.data[6] = 0xFF; 
+  canMsg1.data[7] = 0xFF;
+  mcp2515.sendMessage(&canMsg1);
+ }
+}
+```
+
+O programa garante que as duas datagramas não são inseridos um apos a outra no barramento para garantir tempo de processamento ao computador de bordo.
+A velcidade de comunicação é de 125kbps. 
+
+
+
+#### 4.1.1.1. Dicionario de dados CAN
 
 Estamos aproveitando o dicionário de dados do BRElétrico.
  
@@ -605,7 +768,8 @@ cantools dump GamaGolfV1.dbc
 
 ```
 
-O comando `cantools` não funcionou diretamenteno linux embarcada do OBC.
+O comando `cantools` não funcionou diretamenteno linux embarcada do OBC no BeagleBone Black. Ele já funcionou no Pocket Beagle e deve ter alguma configuração do debian que faltou compatibilizar.
+
 Além do mais, se acessar cantools por meio do python `python3 -m cantools` ele indica a falta da biblioteca `matplotlib`.
 
 Uma conferencia com `pip3 list`mostra que a biblioteca está instalada. Eu não sei se isso depende da instalação do `cantools` no python ou o fato de que eu uso o Debian no modo gráfico no OBC.
@@ -613,84 +777,19 @@ Uma conferencia com `pip3 list`mostra que a biblioteca está instalada. Eu não 
 Entretanto, é possivel importar a biblioteca `cantools` normalmente num programa python e executar suas funções que não usam um suporte gráfico. 
 
 
-# 4.2. Software Módulo instrumentação 
+### 4.1.2. GPS 
 
-O módulo de instrumantação tem um Arduino Nano como microcontrolador.
-O programa usa a biblioteca CAN da 
-[travis-ci Arduino MCP2515 CAN interface library](https://travis-ci.org/autowp/arduino-mcp2515).
+Descrição da Interface serial ttyS?
 
-Uma cópia do programa está na pasta `/home/debian/src/Arduino/BREletrica_Sensor_Can_LCD_2022.ino` do Beagle Bone Black. 
+Descrição do protocolo NMEA
 
-O programa basicamente mede os dados velocidade e dados elétricos e mostra no display a cada ciclo do programa principal e a cada 500 milisegundos disponibiliza estes dados no barramento CAN por meio de um datagram conforme mostrado no trecho do programa principal do Arduino.
+ 
 
+## 4.2. Camada 2 - Enlace de dados
 
+Descrição geral da camada 2. Controle do enlace.
 
-```
-void loop(void) {
- char c;
- le_sensores();
- le_velocidade();
- le_ina219(); 
- u8g.firstPage();  /* imprimindo no LCD */
- do {
-      draw();   
- } while( u8g.nextPage() );
- if (tempor_can1 >= 5)
- {
-  tempor_can1=0;
-  canMsg1.can_id = 0x10FEBF90 | CAN_EFF_FLAG;  //  testando com 0x90FEBF90 tambem funcionou
-  canMsg1.can_dlc = 8;
-  canMsg1.data[0] = (Velocidade_Int & 0x00FF); //  (Velocidade_Int & 0x00FF);
-  canMsg1.data[1] = (Velocidade_Int >> 8) & 0x00FF; //(Velocidade_Int >> 8) & 0x00FF;
-  canMsg1.data[2] = 0xFF;
-  canMsg1.data[3] = 0xFF;  
-  canMsg1.data[4] = 0xFF;  
-  canMsg1.data[5] = 0xFF;  
-  canMsg1.data[6] = 0xFF; 
-  canMsg1.data[7] = 0xFF;
-  mcp2515.sendMessage(&canMsg1);
- } 
- if (tempor_can2 >= 5)
- {
-  tempor_can2=0;
-  Voltage_Int=Sensor_1_Int;
-  Current_Int=Sensor_2_Int;
-  canMsg1.can_id = 0x10088A9E | CAN_EFF_FLAG; // 2416478878
-  canMsg1.can_dlc = 8;
-  canMsg1.data[0] = (Voltage_Int & 0x00FF);  
-  canMsg1.data[1] = (Voltage_Int >> 8) & 0x00FF;
-  canMsg1.data[2] = (Current_Int & 0x00FF); 
-  canMsg1.data[3] = (Current_Int >> 8) & 0x00FF;  
-  canMsg1.data[4] = 0xFF;  // temperatura 8 bits
-  canMsg1.data[5] = 0xFF;  // 0-forward, 1-backward, 2-brake, 3-stop, 6-ready
-  canMsg1.data[6] = 0xFF; 
-  canMsg1.data[7] = 0xFF;
-  mcp2515.sendMessage(&canMsg1);
- }
- if (tempor_can3 >= 5)
- {
-  tempor_can3=0;
-  canMsg1.can_id = 0x100A8A9E | CAN_EFF_FLAG; //  PGN Proprio Rudi
-  canMsg1.can_dlc = 8;
-  canMsg1.data[0] = (Tensao12v & 0x00FF);  
-  canMsg1.data[1] = (Tensao12v >> 8) & 0x00FF;
-  canMsg1.data[2] = (Corrente12v & 0x00FF); 
-  canMsg1.data[3] = (Corrente12v >> 8) & 0x00FF;  
-  canMsg1.data[4] = 0xFF;   
-  canMsg1.data[5] = 0xFF;   
-  canMsg1.data[6] = 0xFF; 
-  canMsg1.data[7] = 0xFF;
-  mcp2515.sendMessage(&canMsg1);
- }
-}
-```
-
-O programa garante que as duas datagramas não são inseridos um apos a outra no barramento para garantir tempo de processamento ao computador de bordo.
-A velcidade de comunicação é de 125kbps. 
-
-
-
-# 4.3. Software OBC leitura CAN
+### 4.2.1 CAN
 
 O programa do OBC tem que inicializar o CAN0, habilitar as chaves e leds do painel, abrir a porta serial do GPS e monitorar os dados do barramento CAN e gravar estes dados num banco de dados no próprio OBC.
 
@@ -768,17 +867,34 @@ a saída do programa é
  'Voltage': 0.0}
 ```
 
+### 4.2.2. TTY
 
-# 4.4. Software OBC Banco de Dados 
+Descrição do link com o GPS pela porta serial.
 
-O programa do OBC tem que inicializar o CAN0, habilitar as chaves e leds do painel, abrir a porta serial do GPS e monitorar os dados do barramento CAN e gravar estes dados num banco de dados no próprio OBC.
 
-Além disso, o programa também precisa disponibilizar os dados para acesso via internet (quando está ligada na rede intranet do campus) em tempo real por meio de um protocolo de comunicação. 
+## 4.3. Camada 3 - Decodificando dos dados
+
+Descrição da etapa de decodificação dos dados com os diversos protocolos.
+
+### 4.3.1. J1939 
+Fazer menção ao dicionário de dados usado no CAN e as bibliotecas já disponível no Python3
+
+### 4.3.2. NMEA
+
+Explicar o protocolo NMEA e as bibliotecas no Python.
+
+## 4.4. Camada 4 - Disponibilização e armazenamento dos dados 
+
+Desrição da camada de disponibilizar e armazenar os dados para a camada 5 de aplicação. 
+
+Será um programa única em Python que armazenará os dados num banco de dados SQL e além disso, o programa também precisa disponibilizar os dados para acesso via internet (quando está ligada na rede intranet do campus) em tempo real por meio do protocolo de comunicação Modbus-IP. 
+
+
+### 4.4.1. SQL - Estrutura de banco de dados
+
 
 Escolheu-se usar o sistema gerenciador de banco de dados MariaDB que implementa o padrão SQL.
 O OBC neste caso foi configurado como servidor de banco de dados e pode receber requisições via comandos SQL pela internet.
-
-## 4.4.1. Acessando o banco de dados
 
 O procedimento para configurar o banco de dados é baseado no [tutorial neste link](https://github.com/Tecnomobele-FGA/Computador-de-bordo/tree/master/Datalogger_Scada)
 
@@ -869,7 +985,7 @@ Veja que o `timestamp(3)` para poder gravar fraçoes de segundos no banco.
 
 Para usar estes dados será necessário fazer um pos-processamento dos dados gravados no MariaDB para sincronizar as diversas tabelas.  
 
-## 4.4.2. Gravando dados do GPS no MariaDB
+#### Gravando dados do GPS no MariaDB
 
 O primeiro programa mostra uma rotina de teste para gravar os dados do GPS no MariaDB.
 Os dados são somente gravados quando temos dados validos no latitue e longitude.
@@ -941,11 +1057,11 @@ while True:
 ```
 
 
-## 4.4.3. Gravando dados da placa instrumentação no MariaDB
+#### 4.4.1.2. Gravando dados da placa instrumentação no MariaDB
 
 
 
-# 4.5. Modbus-IP tempo real
+### 4.4.2. Modbus-IP tempo real
 
 Para a comunicação em tempo real, escolheu-se o protocolo MODBUS-IP onde o OBC funciona como estação escravo.
 
@@ -1021,3 +1137,11 @@ except:
 
 
 ```
+
+
+
+## 4.5. Camada 5 - Aplicação 
+Descrição da camada de aplicação 
+
+### 4.5.1. Colab
+### 4.5.2. ScadaBR
