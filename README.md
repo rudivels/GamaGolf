@@ -32,6 +32,16 @@ O sistema de acionamento e controle de movimentação é bastante simples com um
 
 ![](fotos/IMG_3783.jpeg)
 
+
+A documentação do controlador NPX está nos links:
+
+[Documentacao 1](anexos/Doc100-057-A_SPEC-NPX-Product-Family.pdf)
+
+[Documentacao 2](anexos/Doc100-035-A_DWG-Heatsink-Short-Mounting-Pattern-1.pdf)
+
+
+[Documentacao 3](anexos/Doc100-013-C_OP-NPX-Mini-Man.pdf)
+
 Além disso, o GG tem uma sistema de sinalização bastante simples, com sinalização de setas e iluminação.
 A versão original do GG tem somente um sistema de indicação de carga de bateria, sem sistema BMS, indicação de tensão e corrente, ou carga da bateria.
 
@@ -437,19 +447,64 @@ Configuração do Sistema Operacional Linux para rodar os diversos programas de 
 A configuração pode ser dividido em 3 partes:
 
 * Iniciar os serviços de rede (WiFi) e acesso via SSH ou USB - `boot`
-* Rotina shell com ferramentas do Linx Debian para configurar o hardware adicional do OBC por meio dos pinos do BBB para trabalhar com portas seriais, can e i2c - `config_uart_can_i2c.sh`
+* Rotina shell com ferramentas do Linx Debian para configurar o hardware adicional do OBC por meio dos pinos do BBB para trabalhar com portas seriais, can e i2c - `conf_uart_can_i2c.sh`
 * Rotina em python para mostrar o estado do BBB no Display OLED - `oled.py` 
-* Usar o `systemctl` para chamar os programas que ficarão carregados automaticamente na sequencia certa. O primeiro chamado é `config_uart_can_i2c.sh` em o segundo `oled.py`. As versoes finais estão no `/home/debian/bin/`. Em seguida os demais programs serão chamadas.
+* Usar o `systemctl` para chamar os programas que ficarão carregados automaticamente na sequencia certa. O primeiro chamado é `conf_uart_can_i2c.sh` em o segundo `oled.py`. As versoes finais estão no `/home/debian/bin/`. Em seguida os demais programs serão chamadas.
 
  
  
 | num. | nome | linguagem | pasta | descrição |
 |:----:|:-----|:----------|-------|-----------|
-| 1 | `config_uart_can_i2c.sh` | shell | /home/debian/bin/ | configuração dos pinos do BBB |
-| 2 | `oled.py` | python  | /home/debian/src/oled/ | mostrar os estado do BBB no display Oled |
-| 3 | inician rede CAN | shell | sudo /sbin/ip link set can1 up type can bitrate 125000 |  |
-| 4 | `OBC_can` | python | /home/debian/src/OBC_can/ |
-| 5 | `OBC_gps_logger` | python | /home/debian/src/OBC\_gps\_logger/ |
+| 1 | `conf_uart_can_i2c.sh` | shell | /home/debian/bin/ | configuração dos pinos do BBB |
+| 2 | `oled.py` | python  | /home/debian/src/oled/ | mostrar os estado do BBB no display Oled - Camada 1|
+| 3 | `conf_uart_can_i2c.sh` iniciar rede CAN | shell | sudo /sbin/ip link set can1 up type can bitrate 125000 | camada 2 |
+| 4 | `OBC_can_logger` | python | /home/debian/src/OBC\_can\_logger/ | camada 3,4 |
+| 5 | `OBC_gps_logger` | python | /home/debian/src/OBC\_gps\_logger/ | camada 3,4 |
+
+
+Os arquivos são carregados por meio de `systemctl` da baseado nos seguintes links: 
+
+[https://tecadmin.net/setup-autorun-python-script-using-systemd/](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
+
+[https://blog.merzlabs.com/posts/python-autostart-systemd/](https://blog.merzlabs.com/posts/python-autostart-systemd/)
+
+1. Cria o script `conf_uart_can_i2c.sh` em `/home/debian/bin/`
+2. Cria o service `conf_uart_can_i2c.service` em `/lib/systemd/system/` com usuario root
+3. Habilita o serviço `sudo systemctl daemen-reload` e  `sudo systemctl enable conf_uart_can_i2c.service`
+
+O conteudo do arqui.service é :
+
+```
+debian@beaglebone:~$ cat /lib/systemd/system/conf_uart_can_i2c.service 
+[Unit]
+Description=Configuracao dos pinos BBB da CAN UART e I2C
+After=generic-board-startup.service
+
+[Service]
+Type=simple
+ExecStart=/home/debian/bin/conf_uart_can_i2c.sh
+
+[Install]
+WantedBy=multi-user.target
+```
+
+O mesmo procedimento é usado para os demais programas 
+
+```
+debian@beaglebone:~$ cat /lib/systemd/system/oled.service 
+[Unit]
+Description=Oled_Display
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/debian/bin/oled.py
+User=debian
+Group=debian
+
+[Install]
+WantedBy=multi-user.target
+```
 
 
 ## 4.1. Camada 1 - Instrumentos
@@ -466,11 +521,32 @@ O programa basicamente mede os dados velocidade e dados elétricos e mostra no d
 
 O formato das mensagens no baramento CAN são apresentados na descrição do dicionário de dados.
 
-| tipo | Mensagem 1 | Mensagem 2 | Mensagem 3 |
-|:-----|:-----------|:-----------|------------|
-| int  | Velocidade | Voltage | Tensão 12V |
-| int  | Corrente    | | Corrente 12V |
-| bits | | status |
+
+Mensagem 1 
+
+| item  | Dado | Descrição | tamanho | endereço |
+|:--|:-----------|---------|---------|:--------:|
+| 1 | Velocidade | Velocidade linear medido pelo Mod Instrum. | 16 bits | 0 |
+
+Mensagem 2 
+
+| item  | Dado | Descrição | tamanho |endereço |
+|:--|:-----------|---------|---------|:--------:|
+| 1 | Voltage  | Tensão da bateria de tração   | 16 bits | 0 |
+| 2 | Corrente | Corrente da bateria de tração | 16 bits | 2|
+| 3 | --- | Temperatura da bateria de tração | 16 bits | 4 |
+| 4 | --- | 0-forward   | 1 bit | 5.0 |
+| 5 | --- | 1-backward  | 1 bit | 5.1 |
+| 6 | --- | 2-brake     | 1 bit | 5.2 |
+| 7 | --- | 3-stop      | 1 bit | 5.3 |    
+| 8 | --- | 6-readyforward | 1 bit | 5.6 |    
+
+Mensagem 3
+
+| item  | Dado | Descrição | tamanho |endereço|
+|:--|:-----------|---------|---------|:--------:|
+| 1 | Tensao 12v | Tensão da bateria estacionária | 16 bits | 0 |
+| 2 | Corrente 12v | Corrente da bateria estacionária | 16 bits | 2|
 
 O programa que está lista a seguir.
 
@@ -791,9 +867,9 @@ Descrição geral da camada 2. Controle do enlace.
 
 ### 4.2.1 CAN
 
-O programa do OBC tem que inicializar o CAN0, habilitar as chaves e leds do painel, abrir a porta serial do GPS e monitorar os dados do barramento CAN e gravar estes dados num banco de dados no próprio OBC.
+A comuicação no barramento CAN pode ser acessado de vários formas. 
 
-O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/GamaGolfV1.dbc`    
+
 
 A comunicação do barramento CAN pode ser monitorado de forma direta com o utilitário `candump`
 
@@ -809,6 +885,9 @@ debian@beaglebone:~/src/OBC_can$ candump can0 -td
  (000.001132)  can0  100A8A9E   [8]  9A 05 27 00 FF FF FF FF
  (000.001137)  can0  10088A9E   [8]  00 00 0B 00 FF FF FF FF
 ```
+
+
+O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/GamaGolfV1.dbc`    
 
 Pelo problema anterior mencionado com o cantools não é posível monitorar a comunicação com o comando `python3 -m cantools monitor -c can0 -B 125000 src/DBC/BRELETmotorV2.dbc`    
 
@@ -870,6 +949,50 @@ a saída do programa é
 ### 4.2.2. TTY
 
 Descrição do link com o GPS pela porta serial.
+
+```
+import serial
+import pynmea2
+
+ser = serial.Serial("/dev/ttyS4",9600, timeout=0.5)
+
+class GPS:
+	def __init__ (self):
+		ser.flushInput()
+		ser.flushInput()
+	def read(self):
+		while (ser.inWaiting()==0):
+			time.sleep(0.01)
+			pass
+		G = ser.readline()
+		self.error=0
+		self.coordenados=0
+		if G != b'' :
+			#self.NMEA = G
+			Gs = G.strip()
+			Gd = Gs.decode(encoding='UTF-8',errors='replace')
+			self.NMEA=Gd
+			Gd_vetor = Gd.split(',')
+			self.code = Gd_vetor[0]
+			if Gd_vetor[0]== '$GPRMC':  # '$GPGGA':
+				#self.coordenados=1
+				try :
+					self.msg = pynmea2.parse(Gd)
+					self.coordenados=1
+				except : self.error = 1
+				
+while True:
+    time.sleep(0.01)
+    Hora =datetime.datetime.now()
+    myGPS.read()
+    if (myGPS.coordenados == 1) : 
+        Latitude =  myGPS.msg.lat
+        Longitude = myGPS.msg.lon
+        Velocidade = myGPS.msg.spd_over_grnd
+        horario = myGPS.msg.timestamp   ## falta testar.. !!!
+        s = "%s" % Hora + " , " + "%s" % Latitude + " , " + "%s" % Longitude + " , " +  "%s" % Velocidade
+        print (s)
+```
 
 
 ## 4.3. Camada 3 - Decodificando dos dados
