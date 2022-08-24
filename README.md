@@ -486,7 +486,10 @@ ExecStart=/home/debian/bin/conf_uart_can_i2c.sh
 WantedBy=multi-user.target
 ```
 
-O mesmo procedimento é usado para os demais programas 
+O mesmo procedimento é usado para os demais programas.
+
+Colaca o programa executavel em python `oled.py` nao pasta `/home/debian/bin` e cria um arquivo `oled.service`  com o seguinte script.
+ 
 
 ```
 debian@beaglebone:~$ cat /lib/systemd/system/oled.service 
@@ -1235,6 +1238,40 @@ while True:
 
 #### 4.4.1.2. Gravando dados da placa instrumentação no MariaDB
 
+#### 4.4.1.3. Gravando dados para o Hackathon 2022
+Este programa é uma versão simplificado para gravar os dados do GPS e dados elétricas para o Hackathon 2022. A simplificação consiste na gravação de um registro único de GPS e dados elétricos no MariaDB na tabela `registro_hackathon`.
+
+Essa simplificaçao trabalha com uma taxa de amostragem de 1 Hz, que é dado pela leitura dos dados do GPS.
+A tabela tem o seguinte formato 
+
+```
+create table regsitro_hackathon (hora timestamp(03) , latitude decimal(10.5), longitude decimal(10,5), velocidade_gps float, altitude float, tensao float, corrente float, velocidade float) 
+```
+
+O programa fonte `hackathon_v1.py` está no folder `/home/debian/src/GamaGolf` e a cópia executavel será colocado no `/home/debian/bin/hackathon.py`.
+A carga do programa é por meio de `systemctl` no boot do sistema operacional e gravará os dados no banco de dados quando a chave1/led1 no painel estão ligados.
+
+Quando a chave1 está desligado os dados não são processados ou gravados.
+
+```
+debian@beaglebone:~$ cat /lib/systemd/system/hackathon.service 
+[Unit]
+Description=hackathon_python
+After=multi-user.target
+After=oled.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/debian/bin/hackathon.py
+User=debian
+Group=debian
+
+[Install]
+WantedBy=multi-user.target   
+```
+
+Cria o service `hackathon.service`  em `/lib/systemd/system/` com usuario root
+Habilita o serviço `sudo systemctl daemen-reload` e `sudo systemctl enable hackathon.service`
 
 
 ### 4.4.2. Modbus-IP tempo real
@@ -1319,5 +1356,68 @@ except:
 ## 4.5. Camada 5 - Aplicação 
 Descrição da camada de aplicação 
 
-### 4.5.1. Colab
+### 4.5.1. Pyhon Jupyter Notebook Colab
+
+```
+#!/usr/bin/env python
+# coding: utf-8
+# # Programa para pegar percurso do GPS do OBC do GamaGolfe andando no campus Gama
+# 
+# Este programa baixa os dados armazenados no banco de dados MariaDB no OBC e mostra o percurso.
+# Para baixar os dados é preciso que o GamaGolfe esteja no UED proximo ao roteador wifi do laboratório de termofluidos, pois o OBC está ligado neste roteador com endereço dinamico IP 192.168.1.100 
+# O endereco do IP pode ser lido no display do OBC
+# 
+# Versao 13 julho 2022
+
+import geopandas
+import folium
+import os
+import time
+import datetime
+import sys
+import mysql.connector
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+#########
+# Abrir banco de dados
+#########
+
+conn = mysql.connector.connect(user='debian', password='sleutel', host='192.168.1.101', database='trajetorio') 
+
+curs = conn.cursor()
+query = ("SELECT * FROM registro_hackathon") # where hora > '2022-08-24 18:00:00'")
+curs.execute(query)
+resultado1 = curs.fetchall()
+inicio = resultado1[0][0]
+print ("Inicio = ",inicio)
+print (resultado1[0])
+
+df = pd.DataFrame(resultado1)
+display(df)
+
+coord=[]
+
+for i in range(len(resultado1)):    
+    coord.append([resultado1[i][1] , resultado1[i][2] ])
+
+map = folium.Map(location = coord[0], tiles='OpenStreetMap' , zoom_start = 17,width=750, height=500, crs='EPSG3857')##, crs='EPSG4326') #, zoom_control=False)
+
+folium.Marker(coord[0],popup="<i>Mt. Hood Meadows</i>", tooltip="Inicio", icon=folium.Icon(color="green")).add_to(map)
+for i in range(len(coord)):
+    folium.Circle( location=coord[i], radius=2, color='brown', fill=True ).add_to( map )
+map    
+
+vel=[]
+corr=[]
+for i in range(len(resultado1)):    
+    vel.append([resultado1[i][3]])
+    corr.append([resultado1[i][6]])
+
+plt.plot(vel)
+plt.plot(corr)
+
+```
+
 ### 4.5.2. ScadaBR
