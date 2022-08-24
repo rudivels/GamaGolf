@@ -427,20 +427,20 @@ A estrutura a seguir mostra a organização dos itens.
 
 
 * 4.1. Camada 1 - Instrumentos
-* 4.1.1. Módulo Instrumentação
-* 4.1.2. GPS
+	* 4.1.1. Módulo Instrumentação
+	* 4.1.2. GPS
 * 4.2. Camada 2 - Enlace de dados
-* 4.2.1. CAN
-* 4.2.2. TTY
+	* 4.2.1. CAN
+	* 4.2.2. TTY
 * 4.3. Camada 3 - Decodificando os dados
-* 4.3.1. J1939
-* 4.3.2. NMEA
+	* 4.3.1. J1939
+	* 4.3.2. NMEA
 * 4.4. Camada 4 - Disponibilização e armazenamento dos dados
-* 4.4.1. SQL
-* 4.4.2. Modbus-IP
+	* 4.4.1. SQL
+	* 4.4.2. Modbus-IP
 * 4.5. Camada 5 - Aplicação
-* 4.5.1. Colab
-* 4.5.2. ScadaBR
+	* 4.5.1. Jupyter Notebook ou Colab
+	* 4.5.2. ScadaBR
 
 Configuração do Sistema Operacional Linux para rodar os diversos programas de forma concomitante.
 
@@ -458,8 +458,6 @@ A configuração pode ser dividido em 3 partes:
 | 1 | `conf_uart_can_i2c.sh` | shell | /home/debian/bin/ | configuração dos pinos do BBB |
 | 2 | `oled.py` | python  | /home/debian/src/oled/ | mostrar os estado do BBB no display Oled - Camada 1|
 | 3 | `conf_uart_can_i2c.sh` iniciar rede CAN | shell | sudo /sbin/ip link set can1 up type can bitrate 125000 | camada 2 |
-| 4 | `OBC_can_logger` | python | /home/debian/src/OBC\_can\_logger/ | camada 3,4 |
-| 5 | `OBC_gps_logger` | python | /home/debian/src/OBC\_gps\_logger/ | camada 3,4 |
 
 
 Os arquivos são carregados por meio de `systemctl` da baseado nos seguintes links: 
@@ -505,6 +503,25 @@ Group=debian
 [Install]
 WantedBy=multi-user.target
 ```
+
+Para testar para ver se os arquivos foram carregados e executados corretamente pode se usar o programa 
+
+```
+systemctl status oled
+systemctl status conf_uart_can_i2c
+```
+
+
+Apos a inicialização do sistema operacional e os serviços básicos de rede, can e pode ser acompanhar a configuração da rede e funcionamento das interfaces básicos pelo display OLED. 
+
+Para testar o funcionamento do GPS e barramento CAN tem dois arquivos em python que mostrar seus respectivos funcionamento.  
+
+| num. | nome | linguagem | pasta | descrição |
+|:----:|:-----|:----------|-------|-----------|
+| 4 | `can_monitor` | python | /home/debian/src/OBC\_can/ | camada 3,4 |
+| 5 | `gps_monitor` | python | /home/debian/src/OBC\_gps/ | camada 3,4 |
+
+
 
 
 ## 4.1. Camada 1 - Instrumentos
@@ -855,11 +872,10 @@ Entretanto, é possivel importar a biblioteca `cantools` normalmente num program
 
 ### 4.1.2. GPS 
 
-Descrição da Interface serial ttyS?
+O GPS é da família Ublox 7 e é ligado por meio de uma porta serial RS232 em 3.3V ao Beagle. 
+Ao energizar o GPS ele manda a cada (1) segundo uma sequencia de characteres pela porta serial. Estes dados são no formato ASCII e podem ser lidos por qualquer programa de leitura na porta serial.
 
-Descrição do protocolo NMEA
 
- 
 
 ## 4.2. Camada 2 - Enlace de dados
 
@@ -868,7 +884,6 @@ Descrição geral da camada 2. Controle do enlace.
 ### 4.2.1 CAN
 
 A comuicação no barramento CAN pode ser acessado de vários formas. 
-
 
 
 A comunicação do barramento CAN pode ser monitorado de forma direta com o utilitário `candump`
@@ -886,6 +901,49 @@ debian@beaglebone:~/src/OBC_can$ candump can0 -td
  (000.001137)  can0  10088A9E   [8]  00 00 0B 00 FF FF FF FF
 ```
 
+
+
+### 4.2.2. TTY
+
+A porta serial no Beagle que faz a leitura do GPS é `/dev/ttyS4`
+
+Um programa para ler porta serial é o minicom que deve ser configurado em 9600 bps 8n1. A listagem a seguir mostra a saida do GPS no minicom.
+
+
+```
+$GPGLL,1559.38339,S,04802.72469,W,150052.00,A,A*6F
+$GPRMC,150053.00,A,1559.38340,S,04802.72464,W,0.276,,240822,,,A*79
+$GPVTG,,T,,M,0.276,N,0.512,K,A*26
+$GPGGA,150053.00,1559.38340,S,04802.72464,W,1,06,1.61,1229.5,M,-11.7,M,,*4F
+$GPGSA,A,3,07,30,14,19,15,17,,,,,,,2.30,1.61,1.64*0D
+$GPGSV,4,1,13,03,,,08,05,14,301,,06,19,027,16,07,11,072,27*4C
+$GPGSV,4,2,13,11,08,355,,13,67,235,,14,26,146,34,15,31,232,33*71
+$GPGSV,4,3,13,17,58,129,30,19,77,064,27,24,02,227,31,28,43,174,35*79
+$GPGSV,4,4,13,30,36,095,30*42
+$GPGLL,1559.38340,S,04802.72464,W,150053.00,A,A*6D
+$GPRMC,150054.00,A,1559.38338,S,04802.72459,W,0.191,,240822,,,A*75
+```
+
+Os dados encaminhados pelo GPS seguem o padrão Descrição do protocolo NMEA
+
+[Descrição do protocolo u-blox 7](https://content.u-blox.com/sites/default/files/products/documents/u-blox7-V14_ReceiverDescriptionProtocolSpec_%28GPS.G7-SW-12001%29_Public.pdf)
+
+No nosso caso específico estamos usando somente duas das mais de 10 mensagens padrões do protocolo NMEA. 
+
+| mensagem | descrição | campos usados |
+|----------|-----------|---------------|
+| \$GPGGA | Global positioning system fix data | latitude, longitude , altitude |
+| \$GPRMC | Recommended minimum data | latitude, longitude, velocidade no solo|
+ 
+
+
+## 4.3. Camada 3 - Decodificando dos dados
+
+Descrição da etapa de decodificação dos dados com os diversos protocolos.
+
+### 4.3.1. J1939 
+
+A decodificação das mensagens do CAN são realizadas por meio de algumas bibliotecas já disponível no Python3
 
 O formato das mensagens foi baseado no J1939 usado no BRELétrico e o dicionário de dados se encontra no arquivo `src/DBC/GamaGolfV1.dbc`    
 
@@ -946,9 +1004,12 @@ a saída do programa é
  'Voltage': 0.0}
 ```
 
-### 4.2.2. TTY
 
-Descrição do link com o GPS pela porta serial.
+
+### 4.3.2. NMEA
+
+A biblioteca `pynmea2` tem as funcionalidades de traduzir o protocolo NMEA. 
+O programa lista a seguir mostra a leitura e decodificação das mensagens com essa biblioteca do Python.
 
 ```
 import serial
@@ -986,8 +1047,8 @@ while True:
     Hora =datetime.datetime.now()
     myGPS.read()
     if (myGPS.coordenados == 1) : 
-        Latitude =  myGPS.msg.lat
-        Longitude = myGPS.msg.lon
+        Latitude =  myGPS.msg.latitude
+        Longitude = myGPS.msg.longitude
         Velocidade = myGPS.msg.spd_over_grnd
         horario = myGPS.msg.timestamp   ## falta testar.. !!!
         s = "%s" % Hora + " , " + "%s" % Latitude + " , " + "%s" % Longitude + " , " +  "%s" % Velocidade
@@ -995,16 +1056,6 @@ while True:
 ```
 
 
-## 4.3. Camada 3 - Decodificando dos dados
-
-Descrição da etapa de decodificação dos dados com os diversos protocolos.
-
-### 4.3.1. J1939 
-Fazer menção ao dicionário de dados usado no CAN e as bibliotecas já disponível no Python3
-
-### 4.3.2. NMEA
-
-Explicar o protocolo NMEA e as bibliotecas no Python.
 
 ## 4.4. Camada 4 - Disponibilização e armazenamento dos dados 
 
@@ -1099,12 +1150,14 @@ MariaDB [trajetorio]> select * from registro_GPS order by hora desc limit 5;
 Os comandos uados para criar os tabelas são mostra a seguir.
 
 ```
-MariaDB [trajetorio]> create table registro_GPS (hora timestamp(3), latitude float, longitude float, velocidade_gps float , altitude float );
+MariaDB [trajetorio]> create table registro_GPS (hora timestamp(3), latitude decimal(10,5), longitude decimal(10,5), velocidade_gps float , altitude float );
 MariaDB [trajetorio]> create table registro_bateria (hora timestamp(3), tensao float, corrente float, temperatura float ); 
 MariaDB [trajetorio]> create table registro_auxiliar (hora timestamp(3), tensao_aux float, corrente_aux float, energia_aux float ); 
 ```
 
 Veja que o `timestamp(3)` para poder gravar fraçoes de segundos no banco.
+
+Também usamos para latitute, longitude `decimal(10,5)` em vez de `float`, pois tivemos algumas problemas de formatos e compatibilidade.
 
 Para usar estes dados será necessário fazer um pos-processamento dos dados gravados no MariaDB para sincronizar as diversas tabelas.  
 
@@ -1166,8 +1219,8 @@ while True:
     Hora = datetime.datetime.now()
     myGPS.read()
     if (myGPS.coordenados == 1) : 
-        Latitude =   myGPS.msg.lat
-        Longitude =  myGPS.msg.lon
+        Latitude =   myGPS.msg.latitude
+        Longitude =  myGPS.msg.longitude
         Velocidade = myGPS.msg.spd_over_grnd
         Altitude =   0 #myGPS.msg.altitude
         horario = myGPS.msg.timestamp   ## falta testar.. !!!
