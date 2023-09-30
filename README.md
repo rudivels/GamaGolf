@@ -48,9 +48,9 @@ A versão original do GG tem somente um sistema de indicação de carga de bater
 ![](fotos/IMG_3775.jpeg)
 
 
-O banco de baterias é formado por 4 baterias de automotiva  de 100Ah. 
+O banco de baterias é formado por 4 baterias tracionárias de 100Ah. 
 
-![](fotos/IMG_3770.jpeg)
+![](fotos/banco_baterias.jpg)
 
 A primeira instrumentação instalada no GG foi um medidor de tensão e corrente simples sem registro de dados ou interface com um computador. 
 O transdutor de corrente é implementado por meio de um shunt na saída da bateria. 
@@ -1356,7 +1356,48 @@ except:
 ## 4.5. Camada 5 - Aplicação 
 Descrição da camada de aplicação 
 
+A camada de aplicação deve pegar os dados armazenados OBC e disponibiliza-los para o usuário final de uma forma aproveitável.
+
+Há várias maneiras de mostrar o dados. A primeira opção é mostrar os dados gravados no banco de dados. A outra opção é adquirir os dados em tempo real e mostra-los de forma dinâmica. 
+
+A primeira opção pode ser implementado por meio de programas já prontos de pesquisa e manipulação de banco de dados como por exemplo DBeaver ou Sequel Pro.
+ 
+Uma outra maneira de visualizar estes dados é por meio de uma interface customizado criado por exemplo no Jupyter Notebook usando Python. 
+
+A segunda opção é mostrar os dados em tempo real e nessa opção deve ser usar um protocolo de comunicação MODBUS-IP que é mais apropriado para este fim
+
+Para ter acesso ao banco de dados MariaDB de forma remota é necessário permitir o usuaro externo (de outro IP) para ter acesso ao banco de dados.
+
+
+### 4.5.1. Acesso ao MariaDB de forma remota 
+
+Para permitir o acesso externo ao banco de dados MariaDB com o DBeaver ou Sequel Pro de um outro computador é necessário fazer os seguintes passos. 
+
+1. entrar no banco de dados como superusuario com o comando `sudo mysql -p`
+2. habilitar o acesso do usuario remoto ao banco de dados com o comando `MariaDB [(none)]> grant all privileges on *.* to 'debian'@'192.168.15.5' identified by 'sleutel';`
+3. finalizar operação com `flush privileges;`
+
+Com isso se pode permitir o acesso remoto (gastei umas 2 horas para lembrar disso quando mudei de computador).
+
+Para conferir se os dados foram atualizados pode-se fazer uma pesquisa usando `MariaDB [information_schema]> select * from USER_PRIVILEGES;`
+
+A figura a seguir mostra o acesso do Sequel Pro ao banco de dados no MariaDB
+
+![](figuras/Tela_Squel_acesso_remoto.jpg)
+
+O programa Sequel Pro permite a filtragem dos dados de forma bastante direto e simples. Além disso há possibilidade de exportar os dados de vários formatos inclusive com Jason.
+
+Este programa é mais simples que dbeaver e para o nosso aplicação atende para fazer buscas e filtragens rápidas.
+
 ### 4.5.1. Pyhon Jupyter Notebook Colab
+
+A construção de uma interface customizada para visualizar os dados do OBC é uma maneira bastante efetivo de analizar comportamento do veículo off-line. 
+
+Essa interface pode ser construída em Python no Jupyter Notebook.
+
+O programa a seguir mostra como se pode retirar os dados do GPS gravados no MariaDB, fazer uma filtragem para selecionar um intervalo de dados e depois mostrar os coordenados num mapa.
+No final o programa mostra o perfil de velocidade e da corrente.
+
 
 ```
 #!/usr/bin/env python
@@ -1419,5 +1460,8 @@ plt.plot(vel)
 plt.plot(corr)
 
 ```
+
+Este programa pode ser melhorado para fazer o pos-processamento dos dados e juntar os registros das diversas tabelas e montar uma interface com todos as medições de forma organizado e interligado. 
+
 
 ### 4.5.2. ScadaBR
