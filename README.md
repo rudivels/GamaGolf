@@ -1396,19 +1396,23 @@ A construção de uma interface customizada para visualizar os dados do OBC é u
 Essa interface pode ser construída em Python no Jupyter Notebook.
 
 O programa a seguir mostra como se pode retirar os dados do GPS gravados no MariaDB, fazer uma filtragem para selecionar um intervalo de dados e depois mostrar os coordenados num mapa.
-No final o programa mostra o perfil de velocidade e da corrente.
+No final o programa mostra o perfil de velocidade e da altitude.
+
+Este programa pode ser melhorado para fazer o pos-processamento dos dados e juntar os registros das diversas tabelas e montar uma interface com todos as medições de forma organizado e interligado. 
 
 
-```
+
+```python
 #!/usr/bin/env python
 # coding: utf-8
-# # Programa para pegar percurso do GPS do OBC do GamaGolfe andando no campus Gama
+# Programa para pegar percurso do GPS do OBC do GamaGolfe andando no campus Gama
+# http://localhost:8888/notebooks/src/GamaGolf_OnBoard_Computer_2023/GG_OBC_upload_SQL_2023_10_01.ipynb
 # 
 # Este programa baixa os dados armazenados no banco de dados MariaDB no OBC e mostra o percurso.
 # Para baixar os dados é preciso que o GamaGolfe esteja no UED proximo ao roteador wifi do laboratório de termofluidos, pois o OBC está ligado neste roteador com endereço dinamico IP 192.168.1.100 
 # O endereco do IP pode ser lido no display do OBC
-# 
 # Versao 13 julho 2022
+# versao 1 de outubro 2023 
 
 import geopandas
 import folium
@@ -1419,49 +1423,79 @@ import sys
 import mysql.connector
 import pandas as pd
 import matplotlib.pyplot as plt
+import ipywidgets as widgets
+from ipydatagrid import DataGrid
+from ipywidgets import Button, HBox, VBox
+```
 
-
+```python
 #########
 # Abrir banco de dados
 #########
-
-conn = mysql.connector.connect(user='debian', password='sleutel', host='192.168.1.101', database='trajetorio') 
-
+conn = mysql.connector.connect(user='debian', password='sleutel', host='192.168.15.5', database='trajetorio') 
 curs = conn.cursor()
-query = ("SELECT * FROM registro_hackathon") # where hora > '2022-08-24 18:00:00'")
+query = ("SELECT * FROM registro_GPS") 
 curs.execute(query)
 resultado1 = curs.fetchall()
-inicio = resultado1[0][0]
-print ("Inicio = ",inicio)
-print (resultado1[0])
-
 df = pd.DataFrame(resultado1)
-display(df)
+datagrid=DataGrid(df, editable=True, layout={"heigth": "200px"})
+datagrid
+```
 
+
+```python
+# Seleciona a faixa de dados que quer processar marcando-o na tabela dinamica
+datagrid.selected_cell_values
+```
+
+
+```python
+ini=widgets.Text(
+    value=str(datagrid.selected_cell_values[0]),
+    placeholder=str(datagrid.selected_cell_values[0]),  #'Type something',
+    description='Reg inicial: ',
+    disabled=False   
+)
+fim=widgets.Text(
+    value=str(datagrid.selected_cell_values[ len(datagrid.selected_cell_values)-1])   ,  #' ',
+    placeholder='Type something',
+    description='Reg final: ',
+    disabled=False   
+)
+left_box = VBox([ini])
+right_box = VBox([fim])
+HBox([left_box, right_box])
+```
+
+```python
+# Executa a busca filtrada no banco de dados
+print(ini.value)
+print(fim.value)
+query = "SELECT * FROM `registro_GPS` WHERE `hora` BETWEEN '" + ini.value + "' AND '" + fim.value +"' LIMIT 0,1000"
+print(query)
+curs.execute(query)
+resultado2 = curs.fetchall()
+df = pd.DataFrame(resultado2)
+DataGrid(df)
+```
+
+```python
 coord=[]
+for i in range(len(resultado2)):    
+    coord.append([resultado2[i][1]/-100 , resultado2[i][2]/-100 ])
 
-for i in range(len(resultado1)):    
-    coord.append([resultado1[i][1] , resultado1[i][2] ])
+# corrigindo os dados do GPS - conferir
 
-map = folium.Map(location = coord[0], tiles='OpenStreetMap' , zoom_start = 17,width=750, height=500, crs='EPSG3857')##, crs='EPSG4326') #, zoom_control=False)
+map = folium.Map(location = coord[0], tiles='OpenStreetMap' , zoom_start = 17,width=750, height=500, crs='EPSG3857') ##   crs='EPSG4326') #, zoom_control=False)
 
 folium.Marker(coord[0],popup="<i>Mt. Hood Meadows</i>", tooltip="Inicio", icon=folium.Icon(color="green")).add_to(map)
 for i in range(len(coord)):
     folium.Circle( location=coord[i], radius=2, color='brown', fill=True ).add_to( map )
 map    
-
-vel=[]
-corr=[]
-for i in range(len(resultado1)):    
-    vel.append([resultado1[i][3]])
-    corr.append([resultado1[i][6]])
-
-plt.plot(vel)
-plt.plot(corr)
-
 ```
 
-Este programa pode ser melhorado para fazer o pos-processamento dos dados e juntar os registros das diversas tabelas e montar uma interface com todos as medições de forma organizado e interligado. 
+
+
 
 
 ### 4.5.2. ScadaBR
