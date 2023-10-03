@@ -1284,6 +1284,14 @@ Não se teve nessa fase preocupação com a otimização dos recursos no OBC e p
 
 Criou-se um objeto Painel que faz todas as operações de leitura das chaves e acionamento dos leds.
 
+Alguns detalhes da implementação que devem ser tomados. 
+
+1. O programa em Python tem que ser executado no Beagle com superusuario para permitir que o protocolo pyModbusTCP funciona como server recebendo requisições dos clientes (supervisórios) em outros computadores.
+2. Tem que se colocar de forma explícita o endereço IP do server, e não somente (127.0.0.1) ou localhost, para permitir o acesso de clientes externos.
+
+Creio que essas limitações possam ser resolvidos configurando as devidas permições nos usuários do Linux, mas não tive tempo de descobrir como isso é feito. 
+A inconveniência é que o endereço IP do servidor modbus pode mudar pois é definido na hora entrar na rede WiFi pelo DHCP.
+
 
 ```
 #!/bin/python3
@@ -1389,7 +1397,7 @@ O programa Sequel Pro permite a filtragem dos dados de forma bastante direto e s
 
 Este programa é mais simples que dbeaver e para o nosso aplicação atende para fazer buscas e filtragens rápidas.
 
-### 4.5.1. Pyhon Jupyter Notebook Colab
+### 4.5.2. Pyhon Jupyter Notebook Colab
 
 A construção de uma interface customizada para visualizar os dados do OBC é uma maneira bastante efetivo de analizar comportamento do veículo off-line. 
 
@@ -1482,7 +1490,7 @@ DataGrid(df)
 ```python
 coord=[]
 for i in range(len(resultado2)):    
-    coord.append([resultado2[i][1]/-100 , resultado2[i][2]/-100 ])
+    coord.append([resultado2[i][1] , resultado2[i][2] ])
 
 # corrigindo os dados do GPS - conferir
 
@@ -1497,5 +1505,8 @@ map
 
 
 
+### 4.5.3. ScadaBR
 
-### 4.5.2. ScadaBR
+O acesso ao Computador de Bordo por meio do ScadaBR é possível quando o OBC está na mesma rede internet do Supervisório ScadaBR. 
+
+O ScadaBR será utilizada para fazer alguma um monitoramento on line quando, por exemplo, o carro está no dinamometro e se precisa fazer uma avaliação. Ou quando o carro a bateria está carregando no posto de recarga e se precisa avaliar a taxa de carga ou estado de carga da bateria.  
