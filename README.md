@@ -1245,7 +1245,7 @@ Essa simplificaçao trabalha com uma taxa de amostragem de 1 Hz, que é dado pel
 A tabela tem o seguinte formato 
 
 ```
-create table regsitro_hackathon (hora timestamp(03) , latitude decimal(10.5), longitude decimal(10,5), velocidade_gps float, altitude float, tensao float, corrente float, velocidade float) 
+create table regsitro_hackathon (hora timestamp(03) , latitude decimal(10,5), longitude decimal(10,5), velocidade_gps float, altitude float, tensao float, corrente float, velocidade float) 
 ```
 
 O programa fonte `hackathon_v1.py` está no folder `/home/debian/src/GamaGolf` e a cópia executavel será colocado no `/home/debian/bin/hackathon.py`.
@@ -1492,8 +1492,6 @@ coord=[]
 for i in range(len(resultado2)):    
     coord.append([resultado2[i][1] , resultado2[i][2] ])
 
-# corrigindo os dados do GPS - conferir
-
 map = folium.Map(location = coord[0], tiles='OpenStreetMap' , zoom_start = 17,width=750, height=500, crs='EPSG3857') ##   crs='EPSG4326') #, zoom_control=False)
 
 folium.Marker(coord[0],popup="<i>Mt. Hood Meadows</i>", tooltip="Inicio", icon=folium.Icon(color="green")).add_to(map)
@@ -1502,8 +1500,9 @@ for i in range(len(coord)):
 map    
 ```
 
+O resultado é o mapa mostrado a seguir.
 
-
+![](figuras/Trajeto_FGA.jpg)
 
 ### 4.5.3. ScadaBR
 
