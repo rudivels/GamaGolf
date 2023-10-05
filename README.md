@@ -5,7 +5,7 @@ link para arquivo original `Documentos/GitHub/GamaGolf`
 [github.com/rudivels/GamaGolf](https://github.com/rudivels/GamaGolf)
 
 # 1. Apresentação 
-O campus Gama tem a disposição um carro de golfe, que foi batizado com o nome de GamaGolge (GG). 
+O campus Gama tem a disposição um carro de golfe, que foi batizado com o nome de GamaGolfe (GG). 
 Este veículo está sendo usado para o uso dia-a-dia das atividades de transporte de material e de pessoas do campus Gama e também está sendo usado para pesquisas e experimentos de mobilidade elétrica.
 
 ![](fotos/IMG_3771.jpeg)
@@ -15,38 +15,37 @@ A figura a seguir mostra outra foto do GG.
 
 ![](fotos/IMG_3787.jpeg)
 
-A primeira experiência foi uma pesquisa de trabalho de conclusão de curso de engenharia automotiva de implementar para transformar o carrinho de golfe num veículo elétrico híbrido série [1].
+A primeira experiência foi uma pesquisa de trabalho de conclusão de curso de engenharia automotiva de implementar para transformar o carrinho de golfe num veículo elétrico híbrido série.
+
+Costa de Oliveira, Túlio. 2018. “Estudo Da Tecnologia Empregada Em Veículos Elétricos Com Autonomia Estendida: Comparativo Cxperimental Com Veiculos Híbridos.” Universidade de Brasília - Trabalho de conclusão de curso de engenharia automotiva.
 
 Um outro trabalho de conclusão de curso desenvolveu um computador de bordo para o GamaGolfe.
 
-
-[1] Costa de Oliveira T. Estudo da tecnologia empregada em veículos elétricos com autonomia estendida: comparativo cxperimental com veiculos híbridos. Universidade de Brasília, 2018.
-
+[Gusmão, Gustavo Canedo. 2023. “Projeto de Um Sistema de Monitoramento Para Veículo Híbrido.” Universidade de Brasilia - Trabalho de conclusão de curso em engenharia automotiva.](anexos/Banca_fev_16_10h_TCC2_GUSTAVO_CANEDO_GUSMAO.pdf)
 
 # 2. Plataforma de ensino e pesquisa
 
 A grande vantagem do GamaGolfe é que tem uma estrutura de acionamento e controle bastante simplificado e accessível que permite que se possa usar o veículo como uma plataforma de ensino e pesquisa. 
 
-O sistema de acionamento e controle de movimentação é bastante simples com um controlador de motor de corrente conínua com um banco de bateria de 48Vcc. 
+O sistema de acionamento e controle de movimentação é bastante simples com um controlador de motor de corrente contínua com um banco de bateria de 48Vcc. 
 
+O motor de corrente contínua é o [D00-4008A do fabricante Advanced Motors de 3,78 CV](anexos/MOTOR_AMD_D00-4008A.pdf) e é mostrada na figua a seguir.
 
 ![](fotos/IMG_3783.jpeg)
 
-
-A documentação do controlador NPX está nos links:
-
-[Documentacao 1](anexos/Doc100-057-A_SPEC-NPX-Product-Family.pdf)
-
-[Documentacao 2](anexos/Doc100-035-A_DWG-Heatsink-Short-Mounting-Pattern-1.pdf)
-
-
-[Documentacao 3](anexos/Doc100-013-C_OP-NPX-Mini-Man.pdf)
-
-Além disso, o GG tem uma sistema de sinalização bastante simples, com sinalização de setas e iluminação.
-A versão original do GG tem somente um sistema de indicação de carga de bateria, sem sistema BMS, indicação de tensão e corrente, ou carga da bateria.
+O controlador do motor de CC pode ser visto na foto a seguir e á do fabricante Altrax modelo NPX.
 
 ![](fotos/IMG_3775.jpeg)
+A documentação do controlador NPX está nos links:
 
+[1 - Especificação do NPX](anexos/Doc100-057-A_SPEC-NPX-Product-Family.pdf)
+
+[2 - Desenho mecâncio no NPX](anexos/Doc100-035-A_DWG-Heatsink-Short-Mounting-Pattern-1.pdf)
+
+[3 - Manual de instalação elétrica](anexos/Doc100-013-C_OP-NPX-Mini-Man.pdf)
+
+Além disso, o GG tem uma sistema de sinalização bastante simples, com sinalização de setas e iluminação.
+A versão original do GG tem somente um sistema de indicação de carga de bateria formado por uma barra de leds.
 
 O banco de baterias é formado por 4 baterias tracionárias de 100Ah. 
 
@@ -71,9 +70,9 @@ Alguns dos relatorios de ensaio com essa instrumentação podem ser acessados aq
 
 [relatório 2](anexos/Relatorio_Gama_Golfe_Ana_Luisa.pdf)
 
-Entretanto é necessário a construção de um sistema de instrumentação e aquisição de dados mais robustas e escalonável.
+Entretanto é necessário a construção de um sistema de instrumentação e aquisição de dados mais robusta e escalonável.
 
-A próxima secção apresenta uma proposta de arquitetura de aquisição de dados.
+A próxima secção apresenta uma proposta de arquitetura de instrumentação, aquisição de dados e automação.
 
 
 # 3. Proposta de arquitetura de instrumentação e automação
@@ -84,7 +83,7 @@ O sistema de instrumentação e automação deve ter as seguintes funções ou p
 * funcionalidade de monitorar a corrente e a tensão da bateria, com calculo de energia consumida;
 * monitorar a velocidade de deslocamento e outros sinais cruziais do GG;
 * funcionalidade de registrar o percurso do veículo por meio de GPS;
-* visualisar todos os variaveis do veículo por meio de um servidor SCADA em tempo real ou off-line;
+* visualisar todos os variaveis do veículo por meio de um software supervisório (SCADA) em tempo real ou off-line;
 * criar estratégias para viabilizar a movimentação autônoma do GG;
 
 
@@ -93,7 +92,7 @@ A estrutura para implementar essas funcionalidades será composto pelos seguinte
 1. Módulo de instrumentação com interface CAN; 
 2. Computador de bordo baseado no BeagleBone Black om rede CAN;
 3. Módulo de sinalização com interface CAN;
-4. Módulo BMS con interfce CAN;
+4. Módulo BMS com interfce CAN;
 5. Computador Servidor SCADA;
 6. Módulo de direção e aceleração assistida com interface CAN;
 
@@ -426,9 +425,10 @@ Na camada 1 roda o programa no hardware específico periférico do OBC, como por
 A estrutura a seguir mostra a organização dos itens.
 
 
-* 4.1. Camada 1 - Instrumentos
+* 4.1. Camada 1 - Instrumentos físicos e seu firmware
 	* 4.1.1. Módulo Instrumentação
 	* 4.1.2. GPS
+	* 4.1.3. Módulo Sinalização
 * 4.2. Camada 2 - Enlace de dados
 	* 4.2.1. CAN
 	* 4.2.2. TTY
@@ -440,7 +440,7 @@ A estrutura a seguir mostra a organização dos itens.
 	* 4.4.2. Modbus-IP
 * 4.5. Camada 5 - Aplicação
 	* 4.5.1. Jupyter Notebook ou Colab
-	* 4.5.2. ScadaBR
+	* 4.5.2. Sistema Supervisório - ScadaBR
 
 Configuração do Sistema Operacional Linux para rodar os diversos programas de forma concomitante.
 
