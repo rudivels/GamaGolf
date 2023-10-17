@@ -1241,7 +1241,7 @@ while True:
 #### 4.4.1.3. Gravando dados para o Hackathon 2022
 Este programa é uma versão simplificado para gravar os dados do GPS e dados elétricas para o Hackathon 2022. A simplificação consiste na gravação de um registro único de GPS e dados elétricos no MariaDB na tabela `registro_hackathon`.
 
-Essa simplificaçao trabalha com uma taxa de amostragem de 1 Hz, que é dado pela leitura dos dados do GPS.
+Essa simplificaçao trabalha com uma taxa de amostragem de 1 Hz. para a gravação dos dados no MariaDB. 
 A tabela tem o seguinte formato 
 
 ```
@@ -1282,15 +1282,9 @@ O programa a seguir mostra parte da implementação do servidor MODBUS-IP e o mo
 
 Não se teve nessa fase preocupação com a otimização dos recursos no OBC e por isso o programa foi feito em Python priorizando o entendimento do código e facilidade de implementação.
 
-Criou-se um objeto Painel que faz todas as operações de leitura das chaves e acionamento dos leds.
-
 Alguns detalhes da implementação que devem ser tomados. 
 
-1. O programa em Python tem que ser executado no Beagle com superusuario para permitir que o protocolo pyModbusTCP funciona como server recebendo requisições dos clientes (supervisórios) em outros computadores.
-2. Tem que se colocar de forma explícita o endereço IP do server, e não somente (127.0.0.1) ou localhost, para permitir o acesso de clientes externos.
-
-Creio que essas limitações possam ser resolvidos configurando as devidas permições nos usuários do Linux, mas não tive tempo de descobrir como isso é feito. 
-A inconveniência é que o endereço IP do servidor modbus pode mudar pois é definido na hora entrar na rede WiFi pelo DHCP.
+1. Tem que se colocar de forma explícita o endereço IP do server, e não somente (127.0.0.1) ou localhost, para permitir o acesso de clientes externos.
 
 
 ```
@@ -1298,28 +1292,25 @@ A inconveniência é que o endereço IP do servidor modbus pode mudar pois é de
 
 import can 
 import cantools
-from pprint import pprint
-
 from pyModbusTCP.server import ModbusServer, DataBank
 from time import sleep
-from random import uniform
-
-from PainelObcGG import painel
+import netifaces
 
 print("Dados do DBC")
-db = cantools.database.load_file('../DBC/BRELETmotorV2.dbc')
+db = cantools.database.load_file('/home/debian/src/DBC/GamaGolfV1.dbc')
 
 print("Abrindo CAN0")
 can_bus=can.interface.Bus(bustype='socketcan', channel='can0', bitrate=125000)
 
 print("Abrindo Modbus")
-server = ModbusServer("192.168.1.5",5020, no_block=True)
+local_IP=netifaces.ifaddresses('wlan0')[2][0]['addr']
+server = ModbusServer(local_IP,5020, no_block=True)
+#server = ModbusServer("192.168.1.5",5020, no_block=True)
+
 input_reg_velocidade=10
 input_reg_voltage=11
 input_reg_current=12
-input_status_chaves=10
 
-Painel = painel()
 voltage=0
 velocidade=0
 current=0
@@ -1331,9 +1322,7 @@ try:
     sleep(1)
 
     while True:
-        sleep(0.01)
-        Painel.read()
-        DataBank.set_bits(input_status_chaves, [Painel.chave1, Painel.chave2, Painel.chave3])
+        sleep(0.1)
         mensagem = can_bus.recv(0.0)
         if mensagem is not None :
             mm=db.decode_message(mensagem.arbitration_id, mensagem.data) 
@@ -1349,7 +1338,7 @@ try:
                     voltage=mm["Current"]
                     DataBank.set_words(input_reg_current, [int(current)])         
                     
-            print("can -> modbus= " + str(velocidade) + " km/h, " + str(voltage) + " V, "+ str(current) + " Amp, " + str([Painel.chave1, Painel.chave2, Painel.chave3]), end = '\r')
+            print("can -> modbus= " + str(velocidade) + " km/h, " + str(voltage) + " V, "+ str(current) + " Amp, " +  '\r')
 
 except:
      print("Shutting down")
@@ -1382,12 +1371,13 @@ Para ter acesso ao banco de dados MariaDB de forma remota é necessário permiti
 Para permitir o acesso externo ao banco de dados MariaDB com o DBeaver ou Sequel Pro de um outro computador é necessário fazer os seguintes passos. 
 
 1. entrar no banco de dados como superusuario com o comando `sudo mysql -p`
-2. habilitar o acesso do usuario remoto ao banco de dados com o comando `MariaDB [(none)]> grant all privileges on *.* to 'debian'@'192.168.15.5' identified by 'sleutel';`
+2. habilitar o acesso do usuario remoto ao banco de dados com o comando `MariaDB [(none)]> grant all privileges on *.* to 'debian'@'192.168.15.%' identified by 'sleutel';`
 3. finalizar operação com `flush privileges;`
 
 Com isso se pode permitir o acesso remoto (gastei umas 2 horas para lembrar disso quando mudei de computador).
 
-Para conferir se os dados foram atualizados pode-se fazer uma pesquisa usando `MariaDB [information_schema]> select * from USER_PRIVILEGES;`
+Para conferir se os dados foram atualizados pode-se fazer uma pesquisa usando
+`use information_schema;` e depois `MariaDB [information_schema]> select * from USER_PRIVILEGES;`
 
 A figura a seguir mostra o acesso do Sequel Pro ao banco de dados no MariaDB
 
@@ -1508,4 +1498,12 @@ O resultado é o mapa mostrado a seguir.
 
 O acesso ao Computador de Bordo por meio do ScadaBR é possível quando o OBC está na mesma rede internet do Supervisório ScadaBR. 
 
-O ScadaBR será utilizada para fazer alguma um monitoramento on line quando, por exemplo, o carro está no dinamometro e se precisa fazer uma avaliação. Ou quando o carro a bateria está carregando no posto de recarga e se precisa avaliar a taxa de carga ou estado de carga da bateria.  
+O ScadaBR será utilizada para fazer alguma um monitoramento on line quando, por exemplo, o carro está no dinamometro e se precisa fazer uma avaliação. Ou quando a bateria está carregando no posto de recarga e se precisa avaliar a taxa de carga ou estado de carga da bateria.  
+
+A figura a seguir mostra a tela de configuração do Modbus-IP do ScadaBR.
+
+![](figuras/scadabr_datasource.jpg)
+
+A tela para visualizar todos os variáveis é mostrada a seguir.
+
+![](figuras/scadabr_view.jpg)
