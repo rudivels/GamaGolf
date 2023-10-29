@@ -1,0 +1,10 @@
+[Unit]
+Description=Configuracao dos pinos BBB da CAN UART e I2C
+After=generic-board-startup.service
+
+[Service]
+Type=simple
+ExecStart=/home/debian/bin/conf_uart_can_i2c.sh
+
+[Install]
+WantedBy=multi-user.target

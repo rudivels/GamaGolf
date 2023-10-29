@@ -1,0 +1,12 @@
+[Unit]
+Description=Oled_Display
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/debian/bin/conf_oled.py
+User=debian
+Group=debian
+
+[Install]
+WantedBy=multi-user.target

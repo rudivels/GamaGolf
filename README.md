@@ -189,9 +189,23 @@ O computador de bordo tem a seguinte funcionalidade.
 O OBC é implementado com o BeagleBone Black (BBB). A configuração é a mesma usado pelo OBC do BR800 que pode ser visto no [link](https://github.com/Tecnomobele-FGA/Computador-de-bordo).
 A diferença é que no caso do GG é preciso ter a opção de um monitor com interface HDMI e por isso se escolheu o BBB. 
 
+
+Nessa seção os seguintes módulos do hardware do OBC são descritos e os seus respectivos procedimentos de configuração. 
+
+1. Bateria Litium Nobreak
+2. Configuração do CAN do BBB
+3. Configuração do GPS
+4. Display OLED SDD1366
+5. Real Time Clock sd3231
+6. Acelerometro MPU4060
+7. Modem GPRS SIM800L
+
+
+O elemento principal do OBC é o BeagleBone Black, mostrada na foto a seguir. 
+
 ![](fotos/Foto_BBB_bateria.jpg)
 
-Os pinos usados são:
+Os pinos usados para interligar BBB aos hardware acessório são:
 
 | Beagle  | uso             | pinos | 
 |:--------|:---------------:|:-----:|
@@ -219,7 +233,7 @@ Os pinos usados são:
 
 
 
-Ordem numerico
+A listagem dos pinos em ordem numerico é:
 
 
 | Beagle  | uso             | pinos | 
@@ -248,7 +262,7 @@ Ordem numerico
 
 
 
-A placa de interface para ligar o BBB com a interface CAN é dado no esquema a seguir.
+Para interligar o BBB ao hardware externa foi construida uma placa (piggiback) de interface. Nessa placa são interligados a interface CAN, as chaves e leds de operação no painel, a interligação para o GPS, Display OLED e Modem GRPS.
 
 ![](figuras/Placa_piggi_back_BBB.jpg)
 
@@ -364,24 +378,9 @@ Estes dois procedimentos são excludentes, ou seja, pode se usar somente uma op�
 Optei para o primeiro que é mais flexível.
 
 
-### 3.2.4. Modem GPRS SIM800L
 
-Uma opção para melhorar a rede de dados foi introduzir um modem GSM.
 
-![](fotos/Foto_SIM800L.jpg)
-
-| Pino | 	Função no SIM800L | Ligação Beagle Bone Black |
-|:----:|:--------------:|:--------------:|
-| 1 | Antenna | 
-| 2 | Vdd -5V | Vcc pino P9-5 (Diode) |
-| 3 | Reset   | 
-| 4 | RX      | UART TX1 pino P9-24 |
-| 5 | TX      | UART RX1 pino P9-26 |
-| 6 | GND     | GND pino P9-1 |
-
-Veja aqui o [tutorial em para ligar o GPRS com Raspberry](https://bekyelectronics.com/sim800l-with-raspberry-pi/) e este [tutorial para implementar o protolcolo PPP] (https://circuitdigest.com/microcontroller-projects/how-to-tether-internet-on-raspberry-pi-using-sim800l-gsm-module) para ligar o Raspberry com a internet.
-
-### 3.2.5. Display OLED SDD1366
+### 3.2.4. Display OLED SDD1366
 
 | Pino | Função SDD1366 | Ligação Beagle Bone Black |
 |:----:|:--------------:|:--------------:|
@@ -398,6 +397,61 @@ config-pin P9.22 i2c
 ```
 
 O programa `i2cdetect` do linux pode ser usado para testar o funcionamento do I2C. 
+
+O endereço do Dislay OLED no barramento I2C foi detectado e é 60 ou 0x3C. 
+
+### 3.2.5. Acelerômetro MPU4060
+
+O MPU4060 é um modulo que contem um acelerômetro e giroscópio de alta precisão, além de um termômetro interno. O módulo tem uma interface i2c que facilita a sua interface com o BBB. 
+O MPU4060 pode ser colocado em paralelo com o Display OLED SDD1366 na mesma interface I2C.
+
+![](fotos/mpu4060.jpg)
+
+O endereço detectado do MPU4060 no barramento I2C foi de 104 ou 0x68 e o MPU4060 funcionou sem problemas em paralelo com o Display OLED.
+
+Entretanto, para evitar o endereçamento conflitante com o RTC o endereço foi modificado colocando o pino A0 do MPU em Vcc, mudando o endereço para 105 ou 0x69.
+
+### 3.2.6. Real Time Clock DS3231
+
+O BBB não tem um relógio de tempo real e cada vez quando é ligado ela pega o horário da internet por meio de uma rotina chamada pelo `systemctl`. O comando para verificar o funcionamento deste comando é    `systemctl status time-sync.target`.
+A desvantagem dessa solução é que se não tiver uma rede de internet todas as ações relacionados ao relógio interno do Beagle  ficam defasados. Isso é bastante crítica numa operação de monitoramento de dados em tempo real.
+
+Para resolver isso colocamos o módulo [RTC DS3231 com eeprom](https://www.huinfinito.com.br/modulos/1466-modulo-rtc-com-ds3231-e-eeprom-24c32.html) no BBB no mesmo barramento I2C. 
+
+Este módulo já usamos num Raspberry num outro projeto e funcionou sem problemas conforme discrito no [https://github.com/leaUnB/Lambari-RadioBase](https://github.com/leaUnB/Lambari-RadioBase).
+Entretanto no BeagleBoard aparentemente o `i2cdetect` não consegui identifcar o DS3231. 
+
+Também há o suspeito que o RTC e o MPU4060 tem o mesmo endereço conforme tutorial no [link](https://learn.adafruit.com/adding-a-real-time-clock-to-beaglebone-black?view=all) que mostra o passo-a-passo de configurar um RTC no Beagle.
+
+O problema é que o conector que colocamos para o i2c no Beagle Bone para ligar o Oled tem a sequencia de `GND, Vcc, SCL, SDA` enquanto o conector do módulo RTC é `GND,Vcc, SDA, SCL` e gastei umas 3 horas para descobrir este detalhe. 
+
+Mas consegui resolver isso e o `i2detect`, mostrou os endereços 0x57 e 0x68 confirmando também o suspeito de endereços conflitantes no barramento i2c. Mesmo mudando no módulo RTC os estrapes que indicavam o endereçamento, não conseguimos mudar o endereço do RTC. Os estrapes no módulo somente mudam o endereço do eeprom. O jeito foi mudar o endereço do MPU4060.
+
+O procedimento para a configuração do RTC é mostrado a seguir:
+
+1. colocar o endereço do rtc ds 3231 na estrutura de arquivos do linux por meio de comando `echo ds3231 0x68 > /sys/class/i2c-adapter/i2c-1/new_device`. Isso cria o novo entrada `/dev/rtc1` 
+2. verificar se o `hwclock` consegue achar o rtc com o comando `sudo hwclock -r -f /dev/rtc1`. A resposta obtido foi `1999-12-31 22:24:25.238705-02:00` mostrado que achou  rtc.
+3. Sincronizar o RTC com o clock local. Isso pode ser feito com `sudo hwclock -s` e depois `hwclock -w -f /dev/rtc1` gravando no RTC.
+4. Por fim automizar esses comandos durante o boot por meio de `systemctl` criando um entrada de servico na forma que é mostrado no item 4.1
+5. Também foi necessário desabilitar a busca automaticamente pelo horário da internet durante o boot com o comando `sudo timedatectl set-ntp false`
+
+
+### 3.2.7. Modem GPRS SIM800L
+
+Uma opção para melhorar a rede de dados foi introduzir um modem GSM.
+
+![](fotos/Foto_SIM800L.jpg)
+
+| Pino | 	Função no SIM800L | Ligação Beagle Bone Black |
+|:----:|:--------------:|:--------------:|
+| 1 | Antenna | 
+| 2 | Vdd -5V | Vcc pino P9-5 (Diode) |
+| 3 | Reset   | 
+| 4 | RX      | UART TX1 pino P9-24 |
+| 5 | TX      | UART RX1 pino P9-26 |
+| 6 | GND     | GND pino P9-1 |
+
+Veja aqui o [tutorial em para ligar o GPRS com Raspberry](https://bekyelectronics.com/sim800l-with-raspberry-pi/) e este [tutorial para implementar o protolcolo PPP] (https://circuitdigest.com/microcontroller-projects/how-to-tether-internet-on-raspberry-pi-using-sim800l-gsm-module) para ligar o Raspberry com a internet.
 
 
 ## 3.3. Módulo de sinalização
@@ -428,10 +482,13 @@ A estrutura a seguir mostra a organização dos itens.
 * 4.1. Camada 1 - Instrumentos físicos e seu firmware
 	* 4.1.1. Módulo Instrumentação
 	* 4.1.2. GPS
-	* 4.1.3. Módulo Sinalização
+	* 4.1.3. Acelerômetro e giroscópio
+	* 4.1.4. RTC
+	* 4.1.5. Módulo Sinalização
 * 4.2. Camada 2 - Enlace de dados
 	* 4.2.1. CAN
 	* 4.2.2. TTY
+	* 4.2.3. I2C
 * 4.3. Camada 3 - Decodificando os dados
 	* 4.3.1. J1939
 	* 4.3.2. NMEA
@@ -455,12 +512,12 @@ A configuração pode ser dividido em 3 partes:
  
 | num. | nome | linguagem | pasta | descrição |
 |:----:|:-----|:----------|-------|-----------|
-| 1 | `conf_uart_can_i2c.sh` | shell | /home/debian/bin/ | configuração dos pinos do BBB |
-| 2 | `oled.py` | python  | /home/debian/src/oled/ | mostrar os estado do BBB no display Oled - Camada 1|
-| 3 | `conf_uart_can_i2c.sh` iniciar rede CAN | shell | sudo /sbin/ip link set can1 up type can bitrate 125000 | camada 2 |
+| 1 | `conf_uart_can_i2c.sh` | shell | /home/debian/src/services/ | configuração dos pinos do BBB e inicia rede CAN com  `sudo /sbin/ip link set can1 up type can bitrate 125000` |
+| 2 | `conf_oled.py` | python  | /home/debian/src/services/ | mostrar os estado do BBB no display Oled |
+| 3 | `conf_rtc_ds3231.sh` | shell  | /home/debian/src/services/ | configurando o Real Time Clock |
 
 
-Os arquivos são carregados por meio de `systemctl` da baseado nos seguintes links: 
+Os arquivos são carregados por meio de `systemctl` baseado nos seguintes links: 
 
 [https://tecadmin.net/setup-autorun-python-script-using-systemd/](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
 
@@ -488,7 +545,7 @@ WantedBy=multi-user.target
 
 O mesmo procedimento é usado para os demais programas.
 
-Colaca o programa executavel em python `oled.py` nao pasta `/home/debian/bin` e cria um arquivo `oled.service`  com o seguinte script.
+Colaca o programa executavel em python `conf_oled.py` nao pasta `/home/debian/bin` e cria um arquivo `conf_oled.service`  com o seguinte script.
  
 
 ```
@@ -499,7 +556,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/debian/bin/oled.py
+ExecStart=/usr/bin/python3 /home/debian/bin/conf_oled.py
 User=debian
 Group=debian
 
@@ -510,10 +567,11 @@ WantedBy=multi-user.target
 Para testar para ver se os arquivos foram carregados e executados corretamente pode se usar o programa 
 
 ```
-systemctl status oled
+systemctl status conf_oled
 systemctl status conf_uart_can_i2c
 ```
 
+Os arquivos de configuração e serviços estão na pasta [https://github.com/rudivels/GamaGolf/src/servicos](https://github.com/rudivels/GamaGolf/src/servicos)
 
 Apos a inicialização do sistema operacional e os serviços básicos de rede, can e pode ser acompanhar a configuração da rede e funcionamento das interfaces básicos pelo display OLED. 
 
@@ -877,8 +935,12 @@ Entretanto, é possivel importar a biblioteca `cantools` normalmente num program
 
 O GPS é da família Ublox 7 e é ligado por meio de uma porta serial RS232 em 3.3V ao Beagle. 
 Ao energizar o GPS ele manda a cada (1) segundo uma sequencia de characteres pela porta serial. Estes dados são no formato ASCII e podem ser lidos por qualquer programa de leitura na porta serial.
+O velocidade de comunicação é de 9600 bps formato 8N1. 
 
 
+### 4.1.3. Acelerômetro e giroscópio
+
+O MPU4060 é interligado por meio de uma porta I2C ao BBB. 
 
 ## 4.2. Camada 2 - Enlace de dados
 

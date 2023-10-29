@@ -1,0 +1,11 @@
+[Unit]
+Description=ds3231 RTC Service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/debian/bin
+ExecStart=/bin/bash /home/debian/bin/conf_rtc_ds3231.sh
+SyslogIdentifier=rtc_ds3231
+
+[Install]
+WantedBy=multi-user.target
