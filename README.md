@@ -180,11 +180,11 @@ O diagrama de blocos do computador de bordo é dado a seguir.
 
 O computador de bordo tem a seguinte funcionalidade.
 
-* GPS para pegar os coordenados geográficos
-* Interface CAN
-* Painel com chaves e leds
-* Banco de dados para armazenar os dados
-* Acesso por meio de rede Wifi
+* GPS e acelerômetro para obter a localização dos dados geográficos e sua movimentação;
+* Interface CAN para comunicar com outros perifêricos;
+* Painel com chaves e leds;
+* Banco de dados para armazenar os dados;
+* Acesso remoto por meio de rede Wifi ou rede celular.
 
 O OBC é implementado com o BeagleBone Black (BBB). A configuração é a mesma usado pelo OBC do BR800 que pode ser visto no [link](https://github.com/Tecnomobele-FGA/Computador-de-bordo).
 A diferença é que no caso do GG é preciso ter a opção de um monitor com interface HDMI e por isso se escolheu o BBB. 
@@ -193,8 +193,8 @@ A diferença é que no caso do GG é preciso ter a opção de um monitor com int
 Nessa seção os seguintes módulos do hardware do OBC são descritos e os seus respectivos procedimentos de configuração. 
 
 1. Bateria Litium Nobreak
-2. Configuração do CAN do BBB
-3. Configuração do GPS
+2. Interface CAN do BBB
+3. GPS
 4. Display OLED SDD1366
 5. Real Time Clock sd3231
 6. Acelerometro MPU4060
