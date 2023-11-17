@@ -100,8 +100,8 @@ map
 
 Alguns dados gravados podem ser acessados pelos links : 
 
-[dados\_gps\_acelerometro\_7\_nov2023.csv]
-(dados_gps_acelerometro_7_nov2023.csv)
+[dados\_gps\_acelerometro\_7\_nov2023.csv](dados_gps_acelerometro_7_nov2023.csv)
+
 
 [dados\_gama\_bruto\_7nov\_2023.txt](dados_gama_bruto_7nov_2023.txt)
 
