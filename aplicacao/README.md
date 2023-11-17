@@ -38,6 +38,77 @@ Este programa é mais simples que dbeaver e para o nosso aplicação atende para
 
 Os dados podem ser gravados num arqquivo tipo CSV no computador e podem ser analisados. Um exemplo de disso é o [programa no jupyter notebook](GG_OBC_excell_upload.pdf)
 
+```
+#!/usr/bin/env python
+# coding: utf-8
+# # Programa para pegar percurso do GPS do OBC do GamaGolfe andando no campus Gama
+# 
+# Este programa baixa os dados armazenados em planilha de calculo e mostra o percurso.
+# 
+# versao novembro 2023 
+
+import geopandas
+import folium
+import os
+import time
+import datetime
+import sys
+import pandas as pd
+
+#########
+# Abrir arquivo  - Não esquece de mudar o caminho para o arquivo no seu computador
+#########
+
+df = pd.read_csv('/Users/rudi/Documents/GitHub/GamaGolf/dados/dados_gama_bruto_7nov_2023.txt', sep='\t')
+
+##########
+# Seleciona os registros do arquivo
+##########
+
+inicio = '2023-11-08 16:23:34'
+final  = '2023-11-08 16:30:00'
+resultado = df[(df["hora"] > inicio)  & (df["hora"] < final)]
+index_list = list(range(0,len(resultado)))
+resultado.index=index_list
+
+#########
+# Monta tabelas para analizar os dados 
+#########
+
+len(resultado)
+coord=[]
+velocidade=[]
+tempo=[]
+altitude=[]
+corrente=[]
+
+for i in range(len(resultado)):    
+    coord.append([resultado.latitude[i] , resultado.longitude[i] ])
+    velocidade.append(resultado.velocidade[i])
+    altitude.append(resultado.altitude[i])
+    tempo.append(resultado.hora[i])   
+    corrente.append(resultado.corrente[i])
+
+map = folium.Map(location = coord[0], tiles='OpenStreetMap' , zoom_start = 17,width=750, height=500)  #crs='EPSG3857')##, ,  crs='EPSG4326') EPSG3857#, zoom_control=False)
+
+folium.Marker(coord[0],popup="<i>Mt. Hood Meadows</i>", tooltip="Inicio", icon=folium.Icon(color="green")).add_to(map)
+for i in range(len(coord)):
+    folium.Circle( location=coord[i], tooltip=tempo[i], radius=2, color='brown', fill=True ).add_to( map )
+map    
+
+```
+
+Alguns dados gravados podem ser acessados pelos links : 
+
+[dados\_gps\_acelerometro\_7\_nov2023.csv]
+(dados_gps_acelerometro_7_nov2023.csv)
+
+[dados\_gama\_bruto\_7nov\_2023.txt](dados_gama_bruto_7nov_2023.txt)
+
+O resultado está no mapa na figura a seguir.
+
+![xx](../figuras/Trajeto_FGA_campus.jpg)
+
 ## 1.2. Python Jupyter Notebook Colab
 
 A construção de uma interface customizada para visualizar os dados do OBC é uma maneira bastante efetivo de analizar comportamento do veículo off-line. 
